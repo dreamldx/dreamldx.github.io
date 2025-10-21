@@ -33,6 +33,43 @@ With its distinctive gray and black aesthetic, the NES brought arcade-quality ga
 
 The NES architecture represents a well-balanced design optimized for sprite-based 2D gaming. The system consists of several key components working in harmony:
 
+```mermaid
+graph TB
+    subgraph "NES Console"
+        CPU["CPU (Ricoh 2A03/2A07)<br/>8-bit @ 1.79 MHz<br/>Includes APU"]
+        PPU["PPU (Ricoh 2C02/2C07)<br/>Graphics Processor<br/>256×240 Resolution"]
+        WRAM["Work RAM<br/>2 KB<br/>(Mirrored to 8 KB)"]
+        VRAM["Video RAM<br/>2 KB"]
+
+        subgraph "Audio Processing Unit"
+            APU["5 Sound Channels<br/>• 2× Pulse Wave<br/>• 1× Triangle<br/>• 1× Noise<br/>• 1× DMC"]
+        end
+
+        CPU <-->|Address/Data Bus| WRAM
+        CPU <-->|Memory-Mapped I/O| PPU
+        CPU -.->|Integrated| APU
+        PPU <-->|Video Bus| VRAM
+    end
+
+    Cart["Game Cartridge<br/>PRG-ROM (Program)<br/>CHR-ROM (Graphics)<br/>Mapper Chips"]
+    Controllers["Controllers<br/>Port 1 & 2<br/>Expansion Port"]
+    TV["TV Display<br/>NTSC/PAL<br/>60/50 Hz"]
+    Audio["Audio Output<br/>Mono/Stereo"]
+
+    Cart <-->|Cartridge Bus| CPU
+    Cart <-->|CHR Bus| PPU
+    Controllers -->|Input Signals| CPU
+    PPU -->|Video Signal| TV
+    APU -->|Audio Signal| Audio
+
+    style CPU fill:#ff6b6b
+    style PPU fill:#4ecdc4
+    style APU fill:#ffe66d
+    style WRAM fill:#a8dadc
+    style VRAM fill:#a8dadc
+    style Cart fill:#95e1d3
+```
+
 ### System Components
 
 1. **Central Processing Unit (CPU):** Custom Ricoh 2A03 (NTSC) / 2A07 (PAL)
