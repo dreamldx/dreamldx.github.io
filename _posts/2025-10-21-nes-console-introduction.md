@@ -34,6 +34,7 @@ With its distinctive gray and black aesthetic, the NES brought arcade-quality ga
 The NES architecture represents a well-balanced design optimized for sprite-based 2D gaming. The system consists of several key components working in harmony:
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#fff','primaryTextColor':'#000','primaryBorderColor':'#000','lineColor':'#000','secondaryColor':'#fff','tertiaryColor':'#fff','background':'#fff','mainBkg':'#fff','secondBkg':'#fff'}}}%%
 graph TB
     subgraph "NES Console"
         CPU["CPU (Ricoh 2A03/2A07)<br/>8-bit @ 1.79 MHz<br/>Includes APU"]
@@ -62,12 +63,15 @@ graph TB
     PPU -->|Video Signal| TV
     APU -->|Audio Signal| Audio
 
-    style CPU fill:#ff6b6b
-    style PPU fill:#4ecdc4
-    style APU fill:#ffe66d
-    style WRAM fill:#a8dadc
-    style VRAM fill:#a8dadc
-    style Cart fill:#95e1d3
+    style CPU fill:#ff6b6b,stroke:#000,color:#000
+    style PPU fill:#4ecdc4,stroke:#000,color:#000
+    style APU fill:#ffe66d,stroke:#000,color:#000
+    style WRAM fill:#a8dadc,stroke:#000,color:#000
+    style VRAM fill:#a8dadc,stroke:#000,color:#000
+    style Cart fill:#95e1d3,stroke:#000,color:#000
+    style Controllers fill:#fff,stroke:#000,color:#000
+    style TV fill:#fff,stroke:#000,color:#000
+    style Audio fill:#fff,stroke:#000,color:#000
 ```
 
 ### System Components
