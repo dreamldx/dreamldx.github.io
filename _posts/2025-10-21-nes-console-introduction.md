@@ -34,7 +34,7 @@ With its distinctive gray and black aesthetic, the NES brought arcade-quality ga
 The NES architecture represents a well-balanced design optimized for sprite-based 2D gaming. The system consists of several key components working in harmony:
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#fff','primaryTextColor':'#000','primaryBorderColor':'#000','lineColor':'#000','secondaryColor':'#fff','tertiaryColor':'#fff','background':'#fff','mainBkg':'#fff','secondBkg':'#fff'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#fff','primaryTextColor':'#000','primaryBorderColor':'#000','lineColor':'#000','secondaryColor':'#fff','tertiaryColor':'#fff','background':'#fff','mainBkg':'#fff','secondBkg':'#fff','tertiaryBkg':'#fff','clusterBkg':'#fff','clusterBorder':'#000','defaultLinkColor':'#000','titleColor':'#000','edgeLabelBackground':'#fff'}}}%%
 graph TB
     subgraph "NES Console"
         CPU["CPU (Ricoh 2A03/2A07)<br/>8-bit @ 1.79 MHz<br/>Includes APU"]
