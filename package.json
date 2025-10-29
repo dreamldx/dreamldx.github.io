@@ -1,0 +1,30 @@
+{
+  "name": "dreamldx.github.io",
+  "version": "1.0.0",
+  "description": "personal website host on github, powered by react and github pages. ",
+  "keywords": [
+    "blog",
+    "personal",
+    "website"
+  ],
+  "homepage": "https://dreamldx.github.io/",
+  "bugs": {
+    "url": "https://github.com/dreamldx/dreamldx.github.io/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamldx/dreamldx.github.io.git"
+  },
+  "license": "ISC",
+  "author": "dreamldx",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.1.12"
+  }
+}
