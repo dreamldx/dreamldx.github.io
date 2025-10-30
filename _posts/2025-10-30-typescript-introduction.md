@@ -920,7 +920,7 @@ function Greeting() {
 | `react-jsxdev` | `.js` | `_jsxDEV()` from runtime | No | React 17+ (development) |
 | `react-native` | `.js` | None | N/A | React Native projects |
 
-#### Choosing the Right JSX Option
+##### Choosing the Right JSX Option
 
 **For React Projects:**
 
@@ -970,7 +970,7 @@ Use when Babel, Webpack, or Vite handles JSX transformation.
 }
 ```
 
-#### JSX Factory Customization
+##### JSX Factory Customization
 
 For non-React JSX frameworks (Preact, Vue JSX, Solid.js), you can customize the JSX factory:
 
@@ -1025,7 +1025,7 @@ const element = h(Fragment, null, "Hello");
 
 This imports from `preact/jsx-runtime` instead of `react/jsx-runtime`.
 
-#### Common JSX Issues and Solutions
+##### Common JSX Issues and Solutions
 
 **Issue 1: "Cannot use JSX unless the '--jsx' flag is provided"**
 ```
@@ -1063,7 +1063,7 @@ Files containing JSX syntax **must** have `.tsx` extension (not `.ts`)
 ✅ MyComponent.tsx  // Correct for JSX
 ```
 
-#### Practical Example Configurations
+##### Practical Example Configurations
 
 **Modern React Application (Create React App style):**
 ```json
@@ -1114,7 +1114,7 @@ Files containing JSX syntax **must** have `.tsx` extension (not `.ts`)
 }
 ```
 
-#### Key Takeaways
+##### Key Takeaways
 
 1. **React 17+**: Use `react-jsx` for cleaner code (no React imports)
 2. **React 16 and below**: Use `react` and import React in every file
