@@ -710,6 +710,558 @@ function processValue(value: string | number) {
 }
 ```
 
+## Understanding tsconfig.json: Common Configuration Options
+
+The `tsconfig.json` file is the heart of any TypeScript project, controlling how the TypeScript compiler behaves. Understanding these configuration options is crucial for optimizing your development workflow and ensuring your code compiles correctly. Let's dive into the most commonly used options.
+
+### Compiler Options Overview
+
+The `compilerOptions` section contains the bulk of your TypeScript configuration. Here's a comprehensive breakdown:
+
+### Target and Module Options
+
+#### `target`
+
+Specifies which ECMAScript version your TypeScript code will be compiled to.
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020"
+  }
+}
+```
+
+**Common values:**
+- `ES3` - Oldest, broadest compatibility (rarely used)
+- `ES5` - Supports older browsers (IE11)
+- `ES6/ES2015` - Modern JavaScript, good browser support
+- `ES2020` - Includes nullish coalescing, optional chaining
+- `ESNext` - Latest features (experimental)
+
+**When to use:**
+- Use `ES2020` or `ES2022` for modern applications
+- Use `ES5` if supporting older browsers
+- Use `ESNext` for cutting-edge features (with caution)
+
+#### `module`
+
+Determines which module system to use for organizing code.
+
+```json
+{
+  "compilerOptions": {
+    "module": "commonjs"
+  }
+}
+```
+
+**Common values:**
+- `commonjs` - Node.js standard (require/module.exports)
+- `es6/es2015` - Modern ES modules (import/export)
+- `esnext` - Latest module features
+- `amd` - Asynchronous Module Definition (browser)
+- `umd` - Universal Module Definition (works everywhere)
+
+**When to use:**
+- `commonjs` for Node.js applications
+- `es6/esnext` for modern web apps with bundlers
+- `esnext` for libraries that will be bundled
+
+#### `lib`
+
+Specifies which library type definitions to include.
+
+```json
+{
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM"]
+  }
+}
+```
+
+**Common values:**
+- `ES5`, `ES6`, `ES2020`, `ESNext` - JavaScript features
+- `DOM` - Browser APIs (document, window, etc.)
+- `DOM.Iterable` - For-of with DOM collections
+- `WebWorker` - Web Worker APIs
+- `ScriptHost` - Windows Script Host
+
+**When to use:**
+- `["ESNext", "DOM"]` for modern web applications
+- `["ES2020"]` for Node.js (no DOM needed)
+- Add specific libs as needed for your environment
+
+### Path and File Resolution
+
+#### `rootDir` and `outDir`
+
+Controls where TypeScript looks for source files and outputs compiled files.
+
+```json
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  }
+}
+```
+
+**Best practices:**
+- Keep source in `src/` directory
+- Output to `dist/` or `build/` directory
+- Maintains clean separation of source and compiled code
+
+#### `baseUrl` and `paths`
+
+Enables custom module resolution and import aliases.
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@utils/*": ["src/utils/*"]
+    }
+  }
+}
+```
+
+**Benefits:**
+- Avoid relative path hell (`../../../components/Button`)
+- Use clean imports: `import Button from '@components/Button'`
+- Makes refactoring easier
+
+#### `moduleResolution`
+
+Determines how TypeScript resolves module imports.
+
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "node"
+  }
+}
+```
+
+**Common values:**
+- `node` - Node.js style resolution (default for CommonJS)
+- `classic` - Legacy TypeScript resolution (rarely used)
+
+**When to use:**
+- Almost always use `node` for modern projects
+
+### Type Checking Options
+
+#### `strict`
+
+Enables all strict type checking options at once (recommended).
+
+```json
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}
+```
+
+**What it enables:**
+- `strictNullChecks` - Null and undefined must be handled explicitly
+- `strictFunctionTypes` - Function parameter types are checked contravariantly
+- `strictBindCallApply` - Check bind, call, and apply methods
+- `strictPropertyInitialization` - Class properties must be initialized
+- `noImplicitAny` - Error on expressions with implied any type
+- `noImplicitThis` - Error when this has an implied any type
+- `alwaysStrict` - Parse in strict mode and emit "use strict"
+
+**Recommendation:** Always start new projects with `strict: true`
+
+#### `noImplicitAny`
+
+Disallows variables with an inferred `any` type.
+
+```json
+{
+  "compilerOptions": {
+    "noImplicitAny": true
+  }
+}
+```
+
+**Example:**
+```typescript
+// Error with noImplicitAny: true
+function log(message) { // Error: Parameter 'message' implicitly has an 'any' type
+  console.log(message);
+}
+
+// Fixed:
+function log(message: string) {
+  console.log(message);
+}
+```
+
+#### `strictNullChecks`
+
+Makes null and undefined distinct types that must be handled explicitly.
+
+```json
+{
+  "compilerOptions": {
+    "strictNullChecks": true
+  }
+}
+```
+
+**Example:**
+```typescript
+// With strictNullChecks: true
+let name: string = "Alice";
+name = null; // Error: Type 'null' is not assignable to type 'string'
+
+// Must explicitly allow null:
+let name: string | null = "Alice";
+name = null; // OK
+```
+
+#### `noUnusedLocals` and `noUnusedParameters`
+
+Reports errors on unused variables and parameters.
+
+```json
+{
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
+```
+
+**Benefits:**
+- Keeps code clean
+- Catches potential bugs
+- Improves code maintainability
+
+**Tip:** Prefix unused parameters with underscore to suppress errors:
+```typescript
+function handler(_req: Request, res: Response) {
+  // _req is intentionally unused but acknowledged
+  res.send('OK');
+}
+```
+
+### Module Interoperability
+
+#### `esModuleInterop`
+
+Enables better compatibility between ES modules and CommonJS.
+
+```json
+{
+  "compilerOptions": {
+    "esModuleInterop": true
+  }
+}
+```
+
+**Why it matters:**
+```typescript
+// Without esModuleInterop:
+import * as React from 'react';
+
+// With esModuleInterop:
+import React from 'react'; // Cleaner syntax
+```
+
+**Recommendation:** Always enable for modern projects
+
+#### `allowSyntheticDefaultImports`
+
+Allows default imports from modules with no default export.
+
+```json
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true
+  }
+}
+```
+
+**Note:** Usually enabled automatically with `esModuleInterop`
+
+### Source Map and Declaration Options
+
+#### `sourceMap`
+
+Generates `.map` files for debugging TypeScript in the browser.
+
+```json
+{
+  "compilerOptions": {
+    "sourceMap": true
+  }
+}
+```
+
+**Benefits:**
+- Debug TypeScript code directly in browser DevTools
+- See original TypeScript code in stack traces
+- Essential for development
+
+#### `declaration` and `declarationMap`
+
+Generates type definition files (`.d.ts`) for your code.
+
+```json
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true
+  }
+}
+```
+
+**When to use:**
+- Publishing libraries to NPM
+- Creating reusable packages
+- Enabling IntelliSense for your code in other projects
+
+### Additional Useful Options
+
+#### `skipLibCheck`
+
+Skips type checking of declaration files (`.d.ts`).
+
+```json
+{
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}
+```
+
+**Benefits:**
+- Faster compilation
+- Avoids type errors in third-party libraries
+- Recommended for most projects
+
+#### `forceConsistentCasingInFileNames`
+
+Ensures file name casing is consistent across imports.
+
+```json
+{
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+**Why it matters:**
+- Prevents issues when moving between case-sensitive (Linux/Mac) and case-insensitive (Windows) file systems
+- Catches import errors early
+
+#### `resolveJsonModule`
+
+Allows importing JSON files as modules.
+
+```json
+{
+  "compilerOptions": {
+    "resolveJsonModule": true
+  }
+}
+```
+
+**Usage:**
+```typescript
+import config from './config.json';
+console.log(config.apiUrl);
+```
+
+#### `allowJs` and `checkJs`
+
+Allows JavaScript files in your TypeScript project.
+
+```json
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true
+  }
+}
+```
+
+**When to use:**
+- Gradually migrating JavaScript project to TypeScript
+- `allowJs`: Compile JS files alongside TS files
+- `checkJs`: Type-check JS files using JSDoc comments
+
+#### `isolatedModules`
+
+Ensures each file can be safely transpiled independently.
+
+```json
+{
+  "compilerOptions": {
+    "isolatedModules": true
+  }
+}
+```
+
+**Why it matters:**
+- Required for tools like Babel, esbuild, or SWC
+- Ensures compatibility with faster build tools
+- Recommended for modern projects
+
+#### `removeComments`
+
+Strips comments from compiled JavaScript output.
+
+```json
+{
+  "compilerOptions": {
+    "removeComments": true
+  }
+}
+```
+
+**Benefits:**
+- Smaller output files
+- Faster load times
+
+#### `noEmit`
+
+Compiles and type-checks without generating output files.
+
+```json
+{
+  "compilerOptions": {
+    "noEmit": true
+  }
+}
+```
+
+**When to use:**
+- Using TypeScript only for type checking
+- Transpiling with Babel or other tools
+- Running in CI/CD for validation
+
+### Include and Exclude
+
+Controls which files TypeScript compiles.
+
+```json
+{
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}
+```
+
+**Best practices:**
+- `include`: Specify your source directories
+- `exclude`: Exclude build outputs, dependencies, test files if needed
+- Use glob patterns for flexibility
+
+### Example Configurations
+
+#### Minimal Node.js Project
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
+```
+
+#### Modern React Application
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "outDir": "./build",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}
+```
+
+#### Library/Package
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "esnext",
+    "lib": ["ES2020"],
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "removeComments": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts"]
+}
+```
+
+### Configuration Tips
+
+1. **Start Strict**: Begin new projects with `"strict": true` to catch errors early
+2. **Use Modern Targets**: Target ES2020+ unless you need older browser support
+3. **Enable Source Maps**: Always use source maps during development
+4. **Skip Lib Check**: Enable `skipLibCheck` for faster builds
+5. **Path Aliases**: Use `paths` to avoid messy relative imports
+6. **Incremental Builds**: Add `"incremental": true` for faster recompilation
+7. **Project References**: For monorepos, use TypeScript project references
+
+### Common Issues and Solutions
+
+**Issue:** Imports not resolving
+**Solution:** Check `moduleResolution`, `baseUrl`, and `paths` settings
+
+**Issue:** Compilation too slow
+**Solution:** Enable `skipLibCheck`, `incremental`, and consider using `isolatedModules`
+
+**Issue:** Strict errors overwhelming
+**Solution:** Start with `strict: false`, enable individual strict options gradually
+
+**Issue:** Cannot import JSON files
+**Solution:** Enable `resolveJsonModule: true`
+
+**Issue:** React JSX errors
+**Solution:** Set `"jsx": "react"` or `"jsx": "react-jsx"` (React 17+)
+
 ## Learning Resources
 
 ### Official Documentation
