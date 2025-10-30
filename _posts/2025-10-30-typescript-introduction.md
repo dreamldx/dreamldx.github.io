@@ -1165,6 +1165,212 @@ Controls which files TypeScript compiles.
 - `exclude`: Exclude build outputs, dependencies, test files if needed
 - Use glob patterns for flexibility
 
+#### Understanding `rootDir` vs `include`
+
+Many developers get confused about the difference between `rootDir` and `include`. While they both deal with file locations, they serve completely different purposes:
+
+**`include` (Top-level configuration)**
+
+```json
+{
+  "include": ["src/**/*", "tests/**/*"]
+}
+```
+
+- **Purpose**: Determines **which files** TypeScript will compile
+- **Location**: Top-level property in `tsconfig.json`
+- **Function**: File selection - tells TypeScript what files to process
+- **Default**: If omitted, includes all `.ts`, `.tsx`, `.d.ts` files in the directory
+- **Use cases**:
+  - Include multiple directories
+  - Use glob patterns to select specific files
+  - Define what gets compiled
+
+**`rootDir` (Compiler option)**
+
+```json
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  }
+}
+```
+
+- **Purpose**: Determines the **output structure** of compiled files
+- **Location**: Inside `compilerOptions`
+- **Function**: Structure preservation - controls how TypeScript mirrors the directory structure in output
+- **Default**: Common root of all input files
+- **Use cases**:
+  - Maintain clean output directory structure
+  - Prevent TypeScript from creating deep nested folders
+  - Ensure output matches source structure
+
+#### Side-by-Side Comparison
+
+| Aspect | `include` | `rootDir` |
+|--------|-----------|-----------|
+| **What it does** | Selects which files to compile | Controls output directory structure |
+| **Location** | Top-level config | Inside `compilerOptions` |
+| **Type** | Array of glob patterns | Single directory path |
+| **Affects compilation** | Yes - determines what gets compiled | No - only affects output structure |
+| **Can be omitted** | Yes (defaults to all TS files) | Yes (inferred from inputs) |
+
+#### Practical Example
+
+Consider this project structure:
+
+```
+my-project/
+├── src/
+│   ├── index.ts
+│   ├── utils/
+│   │   └── helper.ts
+│   └── components/
+│       └── Button.ts
+└── tests/
+    └── index.test.ts
+```
+
+**Scenario 1: Using `include` only**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Result:**
+- Compiles: All files in `src/` ✓
+- Ignores: `tests/` directory ✓
+- Output structure:
+  ```
+  dist/
+  ├── index.js
+  ├── utils/
+  │   └── helper.js
+  └── components/
+      └── Button.js
+  ```
+
+**Scenario 2: Using `include` with wrong `rootDir`**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "."  // Wrong! Root is project root, not src
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Result:**
+- Compiles: All files in `src/` ✓
+- Output structure (NESTED - not ideal):
+  ```
+  dist/
+  └── src/           ← Extra nesting!
+      ├── index.js
+      ├── utils/
+      │   └── helper.js
+      └── components/
+          └── Button.js
+  ```
+
+**Scenario 3: Correct usage of both**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"  // Correct! Matches include pattern
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Result:**
+- Compiles: All files in `src/` ✓
+- Output structure (CLEAN):
+  ```
+  dist/
+  ├── index.js
+  ├── utils/
+  │   └── helper.js
+  └── components/
+      └── Button.js
+  ```
+
+#### Common Mistakes
+
+**Mistake 1: Including files outside `rootDir`**
+
+```json
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*", "scripts/**/*"]  // ❌ scripts/ is outside rootDir
+}
+```
+
+**Error:**
+```
+error TS6059: File 'scripts/build.ts' is not under 'rootDir' './src'.
+'rootDir' is expected to contain all source files.
+```
+
+**Solution:** Adjust `rootDir` to include all directories:
+```json
+{
+  "compilerOptions": {
+    "rootDir": ".",  // Now includes both src/ and scripts/
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*", "scripts/**/*"]
+}
+```
+
+**Mistake 2: Not setting `rootDir` with multiple source directories**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist"
+    // rootDir not specified
+  },
+  "include": ["src/**/*", "lib/**/*"]
+}
+```
+
+**Result:** TypeScript will infer the common root (project root), potentially creating unwanted nesting in output.
+
+#### When to Set `rootDir` Explicitly
+
+**Set it when:**
+- You have a specific source directory structure to preserve
+- You want to prevent extra nesting in output
+- You're building a library or package with clean output requirements
+- You have multiple source directories and want predictable output
+
+**Omit it when:**
+- Simple project with single directory
+- TypeScript's inference works for your use case
+- Using a bundler that handles output structure (Webpack, Vite, etc.)
+
+#### Key Takeaways
+
+1. **`include`** = "What to compile" (file selection)
+2. **`rootDir`** = "How to structure output" (directory mirroring)
+3. Always ensure files in `include` are within `rootDir` (or vice versa)
+4. For clean output, `rootDir` should match your primary source directory
+5. Use `exclude` to filter out files you don't want compiled
+
 ### Example Configurations
 
 #### Minimal Node.js Project
