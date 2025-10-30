@@ -792,6 +792,337 @@ Specifies which library type definitions to include.
 - `["ES2020"]` for Node.js (no DOM needed)
 - Add specific libs as needed for your environment
 
+#### `jsx`
+
+Controls how JSX syntax is transformed in `.tsx` files (React or other JSX frameworks).
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+
+**Available values:**
+
+**`preserve`**
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve"
+  }
+}
+```
+- Keeps JSX syntax unchanged in the output
+- Output file extension: `.jsx`
+- Use case: When you're using a bundler (like Babel, Webpack) that will handle JSX transformation
+- Input: `<div>Hello</div>`
+- Output: `<div>Hello</div>` (unchanged)
+
+**`react`** (Classic React Transform)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react"
+  }
+}
+```
+- Transforms JSX into `React.createElement()` calls
+- Output file extension: `.js`
+- Use case: React applications before React 17
+- Requires: `import React from 'react'` in every JSX file
+- Input: `<div>Hello</div>`
+- Output: `React.createElement("div", null, "Hello")`
+
+**Example:**
+```typescript
+// Input (.tsx file)
+import React from 'react';
+
+function Greeting() {
+  return <div>Hello World</div>;
+}
+
+// Output with "jsx": "react"
+import React from 'react';
+
+function Greeting() {
+  return React.createElement("div", null, "Hello World");
+}
+```
+
+**`react-jsx`** (New JSX Transform - React 17+)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+- Modern JSX transform introduced in React 17
+- Output file extension: `.js`
+- Use case: React 17+ applications (recommended for new projects)
+- Advantage: **No need to import React** in every file
+- Automatically imports necessary functions from `react/jsx-runtime`
+- Input: `<div>Hello</div>`
+- Output: `_jsx("div", { children: "Hello" })`
+
+**Example:**
+```typescript
+// Input (.tsx file) - Notice: No React import needed!
+function Greeting() {
+  return <div>Hello World</div>;
+}
+
+// Output with "jsx": "react-jsx"
+import { jsx as _jsx } from "react/jsx-runtime";
+
+function Greeting() {
+  return _jsx("div", { children: "Hello World" });
+}
+```
+
+**`react-jsxdev`** (Development Mode)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsxdev"
+  }
+}
+```
+- Similar to `react-jsx` but includes extra development information
+- Provides better debugging experience
+- Adds source location info for better error messages
+- Use case: Development builds of React 17+ apps
+- Production builds should use `react-jsx`
+
+**`react-native`**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-native"
+  }
+}
+```
+- Similar to `preserve` but for React Native projects
+- Keeps JSX syntax unchanged
+- Output file extension: `.js` (unlike `preserve` which uses `.jsx`)
+- Use case: React Native applications where the bundler handles JSX
+
+**Comparison Table:**
+
+| JSX Option | Output Extension | Transform | React Import Needed | Best For |
+|------------|-----------------|-----------|-------------------|----------|
+| `preserve` | `.jsx` | None | N/A | Using external bundler |
+| `react` | `.js` | `React.createElement()` | Yes | React < 17 |
+| `react-jsx` | `.js` | `_jsx()` from runtime | No | React 17+ (production) |
+| `react-jsxdev` | `.js` | `_jsxDEV()` from runtime | No | React 17+ (development) |
+| `react-native` | `.js` | None | N/A | React Native projects |
+
+#### Choosing the Right JSX Option
+
+**For React Projects:**
+
+**React 17 or newer:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"  // or "react-jsxdev" for development
+  }
+}
+```
+
+**Benefits of new transform:**
+- Cleaner files (no React import clutter)
+- Smaller bundle size
+- Better performance
+- Future-proof
+
+**React 16 or older:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react"
+  }
+}
+```
+
+**Must include:** `import React from 'react'` in every JSX file
+
+**For Bundler-Based Projects:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve"
+  }
+}
+```
+
+Use when Babel, Webpack, or Vite handles JSX transformation.
+
+**For React Native:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-native"
+  }
+}
+```
+
+#### JSX Factory Customization
+
+For non-React JSX frameworks (Preact, Vue JSX, Solid.js), you can customize the JSX factory:
+
+**`jsxFactory`** - Specifies the factory function
+```json
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "h"  // For Preact
+  }
+}
+```
+
+**Example with Preact:**
+```typescript
+// Input
+const element = <div>Hello</div>;
+
+// Output with jsxFactory: "h"
+const element = h("div", null, "Hello");
+```
+
+**`jsxFragmentFactory`** - Specifies the fragment factory
+```json
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment"
+  }
+}
+```
+
+**Example:**
+```typescript
+// Input
+const element = <>Hello</>;
+
+// Output
+const element = h(Fragment, null, "Hello");
+```
+
+**`jsxImportSource`** - Specifies the module to import JSX functions from (React 17+ transform only)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"  // Use Preact instead of React
+  }
+}
+```
+
+This imports from `preact/jsx-runtime` instead of `react/jsx-runtime`.
+
+#### Common JSX Issues and Solutions
+
+**Issue 1: "Cannot use JSX unless the '--jsx' flag is provided"**
+```
+Error: Cannot use JSX unless the '--jsx' flag is provided.
+```
+
+**Solution:** Add `jsx` option to tsconfig.json
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+
+**Issue 2: "'React' refers to a UMD global, but the current file is a module"**
+
+**Solution:**
+- For React 17+: Use `"jsx": "react-jsx"` (no React import needed)
+- For React 16: Ensure you have `import React from 'react'` at the top
+
+**Issue 3: JSX element implicitly has type 'any'**
+
+**Solution:** Install type definitions
+```bash
+npm install --save-dev @types/react @types/react-dom
+```
+
+**Issue 4: File extension must be .tsx for JSX**
+
+Files containing JSX syntax **must** have `.tsx` extension (not `.ts`)
+
+```
+❌ MyComponent.ts   // Wrong for JSX
+✅ MyComponent.tsx  // Correct for JSX
+```
+
+#### Practical Example Configurations
+
+**Modern React Application (Create React App style):**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true
+  },
+  "include": ["src"]
+}
+```
+
+**Next.js Application:**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "jsx": "preserve",  // Next.js handles JSX transformation
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
+```
+
+**Preact Application:**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",  // Use Preact's JSX runtime
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true
+  }
+}
+```
+
+#### Key Takeaways
+
+1. **React 17+**: Use `react-jsx` for cleaner code (no React imports)
+2. **React 16 and below**: Use `react` and import React in every file
+3. **With bundlers**: Use `preserve` and let the bundler handle JSX
+4. **File extensions**: JSX code must be in `.tsx` files
+5. **Custom frameworks**: Use `jsxFactory` and `jsxImportSource` for non-React frameworks
+6. **Type safety**: Install `@types/react` for proper JSX type checking
+
 ### Path and File Resolution
 
 #### `rootDir` and `outDir`
