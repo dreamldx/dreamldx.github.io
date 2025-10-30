@@ -792,6 +792,337 @@ Specifies which library type definitions to include.
 - `["ES2020"]` for Node.js (no DOM needed)
 - Add specific libs as needed for your environment
 
+#### `jsx`
+
+Controls how JSX syntax is transformed in `.tsx` files (React or other JSX frameworks).
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+
+**Available values:**
+
+**`preserve`**
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve"
+  }
+}
+```
+- Keeps JSX syntax unchanged in the output
+- Output file extension: `.jsx`
+- Use case: When you're using a bundler (like Babel, Webpack) that will handle JSX transformation
+- Input: `<div>Hello</div>`
+- Output: `<div>Hello</div>` (unchanged)
+
+**`react`** (Classic React Transform)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react"
+  }
+}
+```
+- Transforms JSX into `React.createElement()` calls
+- Output file extension: `.js`
+- Use case: React applications before React 17
+- Requires: `import React from 'react'` in every JSX file
+- Input: `<div>Hello</div>`
+- Output: `React.createElement("div", null, "Hello")`
+
+**Example:**
+```typescript
+// Input (.tsx file)
+import React from 'react';
+
+function Greeting() {
+  return <div>Hello World</div>;
+}
+
+// Output with "jsx": "react"
+import React from 'react';
+
+function Greeting() {
+  return React.createElement("div", null, "Hello World");
+}
+```
+
+**`react-jsx`** (New JSX Transform - React 17+)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+- Modern JSX transform introduced in React 17
+- Output file extension: `.js`
+- Use case: React 17+ applications (recommended for new projects)
+- Advantage: **No need to import React** in every file
+- Automatically imports necessary functions from `react/jsx-runtime`
+- Input: `<div>Hello</div>`
+- Output: `_jsx("div", { children: "Hello" })`
+
+**Example:**
+```typescript
+// Input (.tsx file) - Notice: No React import needed!
+function Greeting() {
+  return <div>Hello World</div>;
+}
+
+// Output with "jsx": "react-jsx"
+import { jsx as _jsx } from "react/jsx-runtime";
+
+function Greeting() {
+  return _jsx("div", { children: "Hello World" });
+}
+```
+
+**`react-jsxdev`** (Development Mode)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsxdev"
+  }
+}
+```
+- Similar to `react-jsx` but includes extra development information
+- Provides better debugging experience
+- Adds source location info for better error messages
+- Use case: Development builds of React 17+ apps
+- Production builds should use `react-jsx`
+
+**`react-native`**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-native"
+  }
+}
+```
+- Similar to `preserve` but for React Native projects
+- Keeps JSX syntax unchanged
+- Output file extension: `.js` (unlike `preserve` which uses `.jsx`)
+- Use case: React Native applications where the bundler handles JSX
+
+**Comparison Table:**
+
+| JSX Option | Output Extension | Transform | React Import Needed | Best For |
+|------------|-----------------|-----------|-------------------|----------|
+| `preserve` | `.jsx` | None | N/A | Using external bundler |
+| `react` | `.js` | `React.createElement()` | Yes | React < 17 |
+| `react-jsx` | `.js` | `_jsx()` from runtime | No | React 17+ (production) |
+| `react-jsxdev` | `.js` | `_jsxDEV()` from runtime | No | React 17+ (development) |
+| `react-native` | `.js` | None | N/A | React Native projects |
+
+##### Choosing the Right JSX Option
+
+**For React Projects:**
+
+**React 17 or newer:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"  // or "react-jsxdev" for development
+  }
+}
+```
+
+**Benefits of new transform:**
+- Cleaner files (no React import clutter)
+- Smaller bundle size
+- Better performance
+- Future-proof
+
+**React 16 or older:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react"
+  }
+}
+```
+
+**Must include:** `import React from 'react'` in every JSX file
+
+**For Bundler-Based Projects:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve"
+  }
+}
+```
+
+Use when Babel, Webpack, or Vite handles JSX transformation.
+
+**For React Native:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-native"
+  }
+}
+```
+
+##### JSX Factory Customization
+
+For non-React JSX frameworks (Preact, Vue JSX, Solid.js), you can customize the JSX factory:
+
+**`jsxFactory`** - Specifies the factory function
+```json
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "h"  // For Preact
+  }
+}
+```
+
+**Example with Preact:**
+```typescript
+// Input
+const element = <div>Hello</div>;
+
+// Output with jsxFactory: "h"
+const element = h("div", null, "Hello");
+```
+
+**`jsxFragmentFactory`** - Specifies the fragment factory
+```json
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment"
+  }
+}
+```
+
+**Example:**
+```typescript
+// Input
+const element = <>Hello</>;
+
+// Output
+const element = h(Fragment, null, "Hello");
+```
+
+**`jsxImportSource`** - Specifies the module to import JSX functions from (React 17+ transform only)
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"  // Use Preact instead of React
+  }
+}
+```
+
+This imports from `preact/jsx-runtime` instead of `react/jsx-runtime`.
+
+##### Common JSX Issues and Solutions
+
+**Issue 1: "Cannot use JSX unless the '--jsx' flag is provided"**
+```
+Error: Cannot use JSX unless the '--jsx' flag is provided.
+```
+
+**Solution:** Add `jsx` option to tsconfig.json
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+```
+
+**Issue 2: "'React' refers to a UMD global, but the current file is a module"**
+
+**Solution:**
+- For React 17+: Use `"jsx": "react-jsx"` (no React import needed)
+- For React 16: Ensure you have `import React from 'react'` at the top
+
+**Issue 3: JSX element implicitly has type 'any'**
+
+**Solution:** Install type definitions
+```bash
+npm install --save-dev @types/react @types/react-dom
+```
+
+**Issue 4: File extension must be .tsx for JSX**
+
+Files containing JSX syntax **must** have `.tsx` extension (not `.ts`)
+
+```
+❌ MyComponent.ts   // Wrong for JSX
+✅ MyComponent.tsx  // Correct for JSX
+```
+
+##### Practical Example Configurations
+
+**Modern React Application (Create React App style):**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true
+  },
+  "include": ["src"]
+}
+```
+
+**Next.js Application:**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "jsx": "preserve",  // Next.js handles JSX transformation
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
+```
+
+**Preact Application:**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",  // Use Preact's JSX runtime
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true
+  }
+}
+```
+
+##### Key Takeaways
+
+1. **React 17+**: Use `react-jsx` for cleaner code (no React imports)
+2. **React 16 and below**: Use `react` and import React in every file
+3. **With bundlers**: Use `preserve` and let the bundler handle JSX
+4. **File extensions**: JSX code must be in `.tsx` files
+5. **Custom frameworks**: Use `jsxFactory` and `jsxImportSource` for non-React frameworks
+6. **Type safety**: Install `@types/react` for proper JSX type checking
+
 ### Path and File Resolution
 
 #### `rootDir` and `outDir`
@@ -1164,6 +1495,212 @@ Controls which files TypeScript compiles.
 - `include`: Specify your source directories
 - `exclude`: Exclude build outputs, dependencies, test files if needed
 - Use glob patterns for flexibility
+
+#### Understanding `rootDir` vs `include`
+
+Many developers get confused about the difference between `rootDir` and `include`. While they both deal with file locations, they serve completely different purposes:
+
+**`include` (Top-level configuration)**
+
+```json
+{
+  "include": ["src/**/*", "tests/**/*"]
+}
+```
+
+- **Purpose**: Determines **which files** TypeScript will compile
+- **Location**: Top-level property in `tsconfig.json`
+- **Function**: File selection - tells TypeScript what files to process
+- **Default**: If omitted, includes all `.ts`, `.tsx`, `.d.ts` files in the directory
+- **Use cases**:
+  - Include multiple directories
+  - Use glob patterns to select specific files
+  - Define what gets compiled
+
+**`rootDir` (Compiler option)**
+
+```json
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  }
+}
+```
+
+- **Purpose**: Determines the **output structure** of compiled files
+- **Location**: Inside `compilerOptions`
+- **Function**: Structure preservation - controls how TypeScript mirrors the directory structure in output
+- **Default**: Common root of all input files
+- **Use cases**:
+  - Maintain clean output directory structure
+  - Prevent TypeScript from creating deep nested folders
+  - Ensure output matches source structure
+
+#### Side-by-Side Comparison
+
+| Aspect | `include` | `rootDir` |
+|--------|-----------|-----------|
+| **What it does** | Selects which files to compile | Controls output directory structure |
+| **Location** | Top-level config | Inside `compilerOptions` |
+| **Type** | Array of glob patterns | Single directory path |
+| **Affects compilation** | Yes - determines what gets compiled | No - only affects output structure |
+| **Can be omitted** | Yes (defaults to all TS files) | Yes (inferred from inputs) |
+
+#### Practical Example
+
+Consider this project structure:
+
+```
+my-project/
+├── src/
+│   ├── index.ts
+│   ├── utils/
+│   │   └── helper.ts
+│   └── components/
+│       └── Button.ts
+└── tests/
+    └── index.test.ts
+```
+
+**Scenario 1: Using `include` only**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Result:**
+- Compiles: All files in `src/` ✓
+- Ignores: `tests/` directory ✓
+- Output structure:
+  ```
+  dist/
+  ├── index.js
+  ├── utils/
+  │   └── helper.js
+  └── components/
+      └── Button.js
+  ```
+
+**Scenario 2: Using `include` with wrong `rootDir`**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "."  // Wrong! Root is project root, not src
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Result:**
+- Compiles: All files in `src/` ✓
+- Output structure (NESTED - not ideal):
+  ```
+  dist/
+  └── src/           ← Extra nesting!
+      ├── index.js
+      ├── utils/
+      │   └── helper.js
+      └── components/
+          └── Button.js
+  ```
+
+**Scenario 3: Correct usage of both**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"  // Correct! Matches include pattern
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Result:**
+- Compiles: All files in `src/` ✓
+- Output structure (CLEAN):
+  ```
+  dist/
+  ├── index.js
+  ├── utils/
+  │   └── helper.js
+  └── components/
+      └── Button.js
+  ```
+
+#### Common Mistakes
+
+**Mistake 1: Including files outside `rootDir`**
+
+```json
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*", "scripts/**/*"]  // ❌ scripts/ is outside rootDir
+}
+```
+
+**Error:**
+```
+error TS6059: File 'scripts/build.ts' is not under 'rootDir' './src'.
+'rootDir' is expected to contain all source files.
+```
+
+**Solution:** Adjust `rootDir` to include all directories:
+```json
+{
+  "compilerOptions": {
+    "rootDir": ".",  // Now includes both src/ and scripts/
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*", "scripts/**/*"]
+}
+```
+
+**Mistake 2: Not setting `rootDir` with multiple source directories**
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist"
+    // rootDir not specified
+  },
+  "include": ["src/**/*", "lib/**/*"]
+}
+```
+
+**Result:** TypeScript will infer the common root (project root), potentially creating unwanted nesting in output.
+
+#### When to Set `rootDir` Explicitly
+
+**Set it when:**
+- You have a specific source directory structure to preserve
+- You want to prevent extra nesting in output
+- You're building a library or package with clean output requirements
+- You have multiple source directories and want predictable output
+
+**Omit it when:**
+- Simple project with single directory
+- TypeScript's inference works for your use case
+- Using a bundler that handles output structure (Webpack, Vite, etc.)
+
+#### Key Takeaways
+
+1. **`include`** = "What to compile" (file selection)
+2. **`rootDir`** = "How to structure output" (directory mirroring)
+3. Always ensure files in `include` are within `rootDir` (or vice versa)
+4. For clean output, `rootDir` should match your primary source directory
+5. Use `exclude` to filter out files you don't want compiled
 
 ### Example Configurations
 
