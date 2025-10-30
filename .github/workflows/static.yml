@@ -22,6 +22,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  copy-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Copy assets
+        run: |
+          mkdir -p ./dist/assets
+          cp -r ./_posts/* ./dist/assets/posts
   # Single deploy job since we're just deploying
   deploy:
     environment:
