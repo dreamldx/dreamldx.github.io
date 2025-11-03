@@ -226,7 +226,669 @@ Hooks solve these problems by:
 
 #### Under the Hood: How Hooks Work
 
-React Hooks rely on a simple mechanism: **call order preservation**. React maintains a list of hooks for each component and relies on the order in which hooks are called to preserve state between renders.
+React Hooks rely on a simple but powerful mechanism: **call order preservation**. React maintains a list of hooks for each component and relies on the order in which hooks are called to preserve state between renders.
+
+#### The Call Order Preservation Mechanism Explained
+
+At its core, React Hooks work by maintaining an array of hook states for each component. React uses the **index** in this array to match hook calls with their stored state. This is why the order of hook calls must remain consistent across renders.
+
+**Key Concept**: React doesn't know which hook is which by name or type. It identifies hooks purely by the order they're called in.
+
+##### How It Works: Step by Step
+
+Let's trace through exactly what happens when a component with hooks is rendered:
+
+```javascript
+// Example component
+function Counter() {
+    const [count, setCount] = useState(0);      // Hook #0
+    const [name, setName] = useState('Alice');  // Hook #1
+    const [flag, setFlag] = useState(false);    // Hook #2
+
+    useEffect(() => {                           // Hook #3
+        console.log('Effect ran');
+    }, [count]);
+
+    return (
+        <div>
+            <p>{name}: {count}</p>
+            <button onClick={() => setCount(count + 1)}>+</button>
+        </div>
+    );
+}
+```
+
+**First Render (Mount):**
+
+```
+Step 1: React starts rendering Counter
+        - Creates empty hooks array: []
+        - Sets hookIndex = 0
+
+Step 2: useState(0) is called
+        - Current hookIndex is 0
+        - No hook exists at index 0
+        - Creates new hook: { state: 0, setState: fn }
+        - Stores at hooks[0]
+        - Increments hookIndex to 1
+        - Returns [0, setState]
+
+Step 3: useState('Alice') is called
+        - Current hookIndex is 1
+        - No hook exists at index 1
+        - Creates new hook: { state: 'Alice', setState: fn }
+        - Stores at hooks[1]
+        - Increments hookIndex to 2
+        - Returns ['Alice', setState]
+
+Step 4: useState(false) is called
+        - Current hookIndex is 2
+        - No hook exists at index 2
+        - Creates new hook: { state: false, setState: fn }
+        - Stores at hooks[2]
+        - Increments hookIndex to 3
+        - Returns [false, setState]
+
+Step 5: useEffect(...) is called
+        - Current hookIndex is 3
+        - No hook exists at index 3
+        - Creates new hook: { effect: fn, deps: [0], cleanup: null }
+        - Stores at hooks[3]
+        - Increments hookIndex to 4
+
+Final state: hooks = [
+    { state: 0, setState: fn },           // index 0
+    { state: 'Alice', setState: fn },     // index 1
+    { state: false, setState: fn },       // index 2
+    { effect: fn, deps: [0], cleanup: null } // index 3
+]
+```
+
+**Second Render (Update after setCount(1)):**
+
+```
+Step 1: React starts re-rendering Counter
+        - Hooks array still exists: [hook0, hook1, hook2, hook3]
+        - Resets hookIndex = 0
+
+Step 2: useState(0) is called
+        - Current hookIndex is 0
+        - Hook EXISTS at index 0: { state: 1, setState: fn }
+        - Returns existing state: [1, setState]
+        - Increments hookIndex to 1
+
+Step 3: useState('Alice') is called
+        - Current hookIndex is 1
+        - Hook EXISTS at index 1: { state: 'Alice', setState: fn }
+        - Returns existing state: ['Alice', setState]
+        - Increments hookIndex to 2
+
+Step 4: useState(false) is called
+        - Current hookIndex is 2
+        - Hook EXISTS at index 2: { state: false, setState: fn }
+        - Returns existing state: [false, setState]
+        - Increments hookIndex to 3
+
+Step 5: useEffect(...) is called
+        - Current hookIndex is 3
+        - Hook EXISTS at index 3
+        - Compares deps: [0] vs [1] - DIFFERENT!
+        - Schedules effect to run
+        - Updates hook: { effect: fn, deps: [1], cleanup: null }
+        - Increments hookIndex to 4
+
+Final: Same hooks array structure, state updated at index 0
+```
+
+##### Visual Representation
+
+Here's a visual representation of how React tracks hooks:
+
+```
+Component: Counter
+┌─────────────────────────────────────────────────────┐
+│ Hooks Array                                         │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  [0] ──► { state: 0 → 1,  setState: ƒ }           │
+│           ↑                                         │
+│           │ First useState(0)                       │
+│                                                     │
+│  [1] ──► { state: 'Alice', setState: ƒ }           │
+│           ↑                                         │
+│           │ Second useState('Alice')                │
+│                                                     │
+│  [2] ──► { state: false, setState: ƒ }             │
+│           ↑                                         │
+│           │ Third useState(false)                   │
+│                                                     │
+│  [3] ──► { effect: ƒ, deps: [0→1], cleanup: null } │
+│           ↑                                         │
+│           │ First useEffect(...)                    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+hookIndex: 0 → 1 → 2 → 3 → 4 (final)
+          ↑   ↑   ↑   ↑
+          │   │   │   └── After useEffect
+          │   │   └────── After 3rd useState
+          │   └────────── After 2nd useState
+          └────────────── After 1st useState
+```
+
+##### Why Call Order MUST Stay Consistent
+
+Now let's see what happens when the call order changes (breaking the rules):
+
+```javascript
+// ❌ WRONG: Conditional hook
+function BrokenCounter() {
+    const [count, setCount] = useState(0);
+
+    // CONDITIONALLY calling a hook!
+    if (count > 0) {
+        const [name, setName] = useState('Alice');  // Sometimes at index 1
+    }
+
+    const [flag, setFlag] = useState(false);  // Sometimes at index 1, sometimes 2!
+
+    return <div>{count}</div>;
+}
+```
+
+**What Happens:**
+
+```
+FIRST RENDER (count = 0):
+hooks[0] = { state: 0 }        ← useState(0)
+hooks[1] = { state: false }    ← useState(false) - skipped the conditional!
+
+User clicks button, setCount(1) called
+
+SECOND RENDER (count = 1):
+hookIndex = 0
+hooks[0] = { state: 1 }        ← useState(0) ✓ Correct
+hookIndex = 1
+hooks[1] = { state: false }    ← useState('Alice') ✗ WRONG!
+                                 React returns 'false' instead of 'Alice'!
+hookIndex = 2
+hooks[2] = undefined           ← useState(false) ✗ CREATES NEW HOOK!
+                                 Should have been at index 1!
+
+RESULT: Complete chaos!
+- name gets value 'false' (wrong type!)
+- flag gets 'undefined' then creates new state
+- State is corrupted
+```
+
+##### Complete JavaScript Implementation
+
+Here's a working implementation to understand the mechanism:
+
+```javascript
+// ============================================
+// Complete React Hooks Implementation
+// ============================================
+
+// Global state
+let currentlyRenderingComponent = null;
+
+// Store hooks for all component instances
+const componentsState = new WeakMap();
+
+// Component instance class
+class ComponentInstance {
+    constructor(Component, props) {
+        this.Component = Component;
+        this.props = props;
+        this.hooks = [];
+        this.hookIndex = 0;
+        this.element = null;
+    }
+
+    render() {
+        // Set global reference
+        currentlyRenderingComponent = this;
+        this.hookIndex = 0; // Reset for this render
+
+        // Call component function
+        const result = this.Component(this.props);
+
+        // Clear global reference
+        currentlyRenderingComponent = null;
+
+        return result;
+    }
+
+    update(newProps) {
+        this.props = newProps;
+        return this.render();
+    }
+}
+
+// ============================================
+// Hook Implementations
+// ============================================
+
+function useState(initialState) {
+    const component = currentlyRenderingComponent;
+    if (!component) {
+        throw new Error('useState must be called during render');
+    }
+
+    const hookIndex = component.hookIndex;
+    const hooks = component.hooks;
+
+    // First render - initialize
+    if (hooks[hookIndex] === undefined) {
+        hooks[hookIndex] = {
+            state: typeof initialState === 'function'
+                ? initialState()
+                : initialState
+        };
+    }
+
+    const hook = hooks[hookIndex];
+
+    // Create setState function
+    const setState = (action) => {
+        const newState = typeof action === 'function'
+            ? action(hook.state)
+            : action;
+
+        // Only update if value changed
+        if (Object.is(hook.state, newState)) {
+            return;
+        }
+
+        hook.state = newState;
+
+        // Trigger re-render
+        console.log(`State updated at hook[${hookIndex}]:`, newState);
+        scheduleRerender(component);
+    };
+
+    component.hookIndex++;
+    return [hook.state, setState];
+}
+
+function useEffect(callback, dependencies) {
+    const component = currentlyRenderingComponent;
+    if (!component) {
+        throw new Error('useEffect must be called during render');
+    }
+
+    const hookIndex = component.hookIndex;
+    const hooks = component.hooks;
+
+    const prevHook = hooks[hookIndex];
+
+    // Check if dependencies changed
+    const hasNoDeps = dependencies === undefined;
+    const depsChanged = prevHook
+        ? hasNoDeps || dependencies.some((dep, i) =>
+            !Object.is(dep, prevHook.dependencies[i])
+        )
+        : true;
+
+    if (depsChanged) {
+        // Schedule cleanup
+        if (prevHook && prevHook.cleanup) {
+            scheduleCleanup(() => prevHook.cleanup());
+        }
+
+        // Schedule effect
+        scheduleEffect(() => {
+            console.log(`Running effect at hook[${hookIndex}]`);
+            const cleanup = callback();
+            hooks[hookIndex].cleanup = cleanup;
+        });
+    }
+
+    hooks[hookIndex] = {
+        dependencies: dependencies ? [...dependencies] : undefined,
+        cleanup: prevHook?.cleanup
+    };
+
+    component.hookIndex++;
+}
+
+function useRef(initialValue) {
+    const component = currentlyRenderingComponent;
+    if (!component) {
+        throw new Error('useRef must be called during render');
+    }
+
+    const hookIndex = component.hookIndex;
+    const hooks = component.hooks;
+
+    // Initialize ref only on first render
+    if (hooks[hookIndex] === undefined) {
+        hooks[hookIndex] = {
+            current: initialValue
+        };
+    }
+
+    component.hookIndex++;
+    return hooks[hookIndex];
+}
+
+function useMemo(factory, dependencies) {
+    const component = currentlyRenderingComponent;
+    if (!component) {
+        throw new Error('useMemo must be called during render');
+    }
+
+    const hookIndex = component.hookIndex;
+    const hooks = component.hooks;
+
+    const prevHook = hooks[hookIndex];
+
+    // Check if dependencies changed
+    const depsChanged = prevHook
+        ? dependencies.some((dep, i) =>
+            !Object.is(dep, prevHook.dependencies[i])
+        )
+        : true;
+
+    if (depsChanged) {
+        const value = factory();
+        hooks[hookIndex] = {
+            value,
+            dependencies
+        };
+    } else {
+        // Reuse previous value
+        hooks[hookIndex] = prevHook;
+    }
+
+    component.hookIndex++;
+    return hooks[hookIndex].value;
+}
+
+function useCallback(callback, dependencies) {
+    // useCallback is just useMemo for functions
+    return useMemo(() => callback, dependencies);
+}
+
+// ============================================
+// Scheduler
+// ============================================
+
+const rerenderQueue = new Set();
+const effectQueue = [];
+const cleanupQueue = [];
+
+function scheduleRerender(component) {
+    rerenderQueue.add(component);
+
+    if (rerenderQueue.size === 1) {
+        // Use microtask for batching
+        queueMicrotask(() => {
+            const components = Array.from(rerenderQueue);
+            rerenderQueue.clear();
+
+            console.log('\n--- RERENDERING ---');
+            components.forEach(comp => {
+                comp.render();
+                console.log('Hooks after render:', comp.hooks);
+            });
+
+            // Run effects after render
+            flushEffects();
+        });
+    }
+}
+
+function scheduleEffect(effect) {
+    effectQueue.push(effect);
+}
+
+function scheduleCleanup(cleanup) {
+    cleanupQueue.push(cleanup);
+}
+
+function flushEffects() {
+    if (cleanupQueue.length > 0 || effectQueue.length > 0) {
+        console.log('\n--- RUNNING EFFECTS ---');
+
+        // Run cleanups first
+        cleanupQueue.forEach(cleanup => cleanup());
+        cleanupQueue.length = 0;
+
+        // Then run effects
+        effectQueue.forEach(effect => effect());
+        effectQueue.length = 0;
+    }
+}
+
+// ============================================
+// Example Usage and Demonstrations
+// ============================================
+
+console.log('='.repeat(50));
+console.log('Example 1: Basic Counter');
+console.log('='.repeat(50));
+
+function Counter(props) {
+    console.log('\n[Render] Counter');
+
+    const [count, setCount] = useState(0);
+    const [step, setStep] = useState(1);
+
+    useEffect(() => {
+        console.log('Effect: count changed to', count);
+        return () => console.log('Cleanup: count was', count);
+    }, [count]);
+
+    console.log(`State: count=${count}, step=${step}`);
+
+    // Simulate button clicks
+    if (props.autoClick && count < 3) {
+        setTimeout(() => {
+            console.log('\n>>> User clicks increment button');
+            setCount(count + step);
+        }, 100);
+    }
+
+    return { count, step, setCount, setStep };
+}
+
+// Create component instance
+const counterInstance = new ComponentInstance(Counter, { autoClick: true });
+
+// Initial render
+console.log('\n>>> Initial Render');
+counterInstance.render();
+
+// Wait for automatic updates
+setTimeout(() => {
+    console.log('\n' + '='.repeat(50));
+    console.log('Example 2: Multiple Hooks');
+    console.log('='.repeat(50));
+
+    function Form() {
+        console.log('\n[Render] Form');
+
+        const [name, setName] = useState('Alice');
+        const [email, setEmail] = useState('alice@example.com');
+        const [age, setAge] = useState(30);
+        const submitCount = useRef(0);
+
+        const memoizedData = useMemo(() => {
+            console.log('Computing memoized data...');
+            return `${name} (${email})`;
+        }, [name, email]);
+
+        const handleSubmit = useCallback(() => {
+            submitCount.current++;
+            console.log('Form submitted', submitCount.current, 'times');
+        }, []);
+
+        console.log('Hooks state:', {
+            name,
+            email,
+            age,
+            submitCount: submitCount.current,
+            memoizedData
+        });
+
+        return { name, setName, email, setEmail, handleSubmit };
+    }
+
+    const formInstance = new ComponentInstance(Form, {});
+
+    console.log('\n>>> Initial Render');
+    const form1 = formInstance.render();
+
+    console.log('\n>>> Update name');
+    form1.setName('Bob');
+
+    setTimeout(() => {
+        console.log('\n>>> Update email');
+        form1.setEmail('bob@example.com');
+
+        setTimeout(() => {
+            console.log('\n' + '='.repeat(50));
+            console.log('Example 3: Hook Call Order Violation');
+            console.log('='.repeat(50));
+
+            function BrokenComponent(props) {
+                console.log('\n[Render] BrokenComponent (props.show =', props.show, ')');
+
+                const [count, setCount] = useState(0);
+
+                // THIS IS WRONG! Conditional hook
+                if (props.show) {
+                    const [name, setName] = useState('Alice');
+                    console.log('Conditional hook - name:', name);
+                }
+
+                const [flag, setFlag] = useState(false);
+
+                console.log('Final state - count:', count, 'flag:', flag);
+
+                return { count, flag, setCount, setFlag };
+            }
+
+            try {
+                const brokenInstance = new ComponentInstance(BrokenComponent, { show: false });
+
+                console.log('\n>>> First render (show=false)');
+                brokenInstance.render();
+                console.log('Hooks array:', brokenInstance.hooks);
+
+                console.log('\n>>> Second render (show=true)');
+                brokenInstance.props.show = true;
+                brokenInstance.render();
+                console.log('Hooks array:', brokenInstance.hooks);
+
+                console.log('\n⚠️  Notice how hook indices are misaligned!');
+                console.log('The flag hook is at different indices!');
+            } catch (error) {
+                console.error('Error:', error.message);
+            }
+
+            setTimeout(() => {
+                console.log('\n' + '='.repeat(50));
+                console.log('Example 4: Correct Conditional Logic');
+                console.log('='.repeat(50));
+
+                function CorrectComponent(props) {
+                    console.log('\n[Render] CorrectComponent (props.show =', props.show, ')');
+
+                    const [count, setCount] = useState(0);
+                    const [name, setName] = useState('Alice'); // Always called!
+                    const [flag, setFlag] = useState(false);
+
+                    // Conditional USAGE, not conditional HOOK
+                    const displayName = props.show ? name : '';
+
+                    console.log('State:', { count, name, flag, displayName });
+
+                    return { count, name, flag, displayName };
+                }
+
+                const correctInstance = new ComponentInstance(CorrectComponent, { show: false });
+
+                console.log('\n>>> First render (show=false)');
+                correctInstance.render();
+                console.log('Hooks array:', correctInstance.hooks);
+
+                console.log('\n>>> Second render (show=true)');
+                correctInstance.props.show = true;
+                correctInstance.render();
+                console.log('Hooks array:', correctInstance.hooks);
+
+                console.log('\n✅  All hooks called in same order!');
+                console.log('Hook indices remain consistent!');
+            }, 200);
+        }, 200);
+    }, 200);
+}, 500);
+
+// ============================================
+// Visualization Helper
+// ============================================
+
+function visualizeHooks(component) {
+    console.log('\n' + '─'.repeat(60));
+    console.log('Hook Visualization:');
+    console.log('─'.repeat(60));
+
+    component.hooks.forEach((hook, index) => {
+        const hasState = hook.hasOwnProperty('state');
+        const hasEffect = hook.hasOwnProperty('dependencies');
+        const hasCurrent = hook.hasOwnProperty('current');
+        const hasValue = hook.hasOwnProperty('value');
+
+        let type = 'Unknown';
+        let value = '';
+
+        if (hasState) {
+            type = 'useState';
+            value = JSON.stringify(hook.state);
+        } else if (hasEffect) {
+            type = 'useEffect';
+            value = `deps: ${JSON.stringify(hook.dependencies)}`;
+        } else if (hasCurrent) {
+            type = 'useRef';
+            value = `current: ${JSON.stringify(hook.current)}`;
+        } else if (hasValue) {
+            type = 'useMemo/useCallback';
+            value = `cached value`;
+        }
+
+        console.log(`[${index}] ${type.padEnd(20)} → ${value}`);
+    });
+
+    console.log('─'.repeat(60));
+}
+```
+
+##### Key Takeaways
+
+1. **Index-Based Tracking**: React uses array indices, not variable names, to track hooks
+2. **Order is Critical**: The same hooks must be called in the same order every render
+3. **Per-Component Storage**: Each component instance has its own hooks array
+4. **Reset on Each Render**: The hook index resets to 0 at the start of each render
+5. **No Magic**: It's a simple array + counter mechanism
+
+##### Why This Design?
+
+**Advantages:**
+- ✅ Simple implementation
+- ✅ Fast lookup (array index access)
+- ✅ No string keys or identifiers needed
+- ✅ Minimal memory overhead
+
+**Trade-offs:**
+- ❌ Requires strict call order rules
+- ❌ Can't be conditional
+- ❌ Can't be in loops (unless stable count)
+- ❌ Requires ESLint plugin to enforce
+
+This is why the **Rules of Hooks** exist - they're not arbitrary, they're essential for this index-based mechanism to work correctly!
 
 ```javascript
 // Simplified React Hooks implementation
