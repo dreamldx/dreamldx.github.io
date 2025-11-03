@@ -285,39 +285,16 @@ Physical = (0x1000 × 16) + 0x0234
 
 #### Memory Segmentation Model
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#f5f5f5','primaryTextColor':'#000','primaryBorderColor':'#424242','lineColor':'#424242','secondaryColor':'#e0e0e0','tertiaryColor':'#bdbdbd','edgeLabelBackground':'#ffffff00','textColor':'#000'},'flowchart':{'curve':'linear'}}}%%
-flowchart TB
-    subgraph MemMap["IBM PC Memory Map - 1 MB Address Space"]
-        Top["<b>0xFFFFF (1 MB)</b>"]
+**IBM PC Memory Map (1 MB Address Space)**
 
-        BIOS["<b>ROM BIOS & BASIC</b><br/>0xF0000 - 0xFFFFF<br/>(64 KB)<br/>━━━━━━━━━━━━━━━━━<br/>• POST Routines<br/>• BIOS Services<br/>• IBM BASIC"]
-
-        ExpROM["<b>Expansion ROM Area</b><br/>0xC0000 - 0xEFFFF<br/>(192 KB)<br/>━━━━━━━━━━━━━━━━━<br/>• Hard Disk BIOS<br/>• Network Card ROM<br/>• Other Adapter ROMs"]
-
-        Video["<b>Video Memory</b><br/>0xA0000 - 0xBFFFF<br/>(128 KB)<br/>━━━━━━━━━━━━━━━━━<br/>• Graphics: 0xA0000<br/>• Monochrome: 0xB0000<br/>• Color Text: 0xB8000"]
-
-        Conv["<b>Conventional Memory</b><br/>0x00000 - 0x9FFFF<br/>(640 KB)<br/>━━━━━━━━━━━━━━━━━<br/>• Interrupt Vector Table<br/>• BIOS Data Area<br/>• DOS Kernel<br/>• User Programs<br/>• Application Data"]
-
-        Bottom["<b>0x00000 (0 KB)</b>"]
-
-        Top --> BIOS
-        BIOS --> ExpROM
-        ExpROM --> Video
-        Video --> Conv
-        Conv --> Bottom
-    end
-
-    style Top fill:#757575,stroke:#424242,stroke-width:3px,color:#fff
-    style Bottom fill:#757575,stroke:#424242,stroke-width:3px,color:#fff
-    style BIOS fill:#ef5350,stroke:#c62828,stroke-width:2px,color:#000
-    style ExpROM fill:#ab47bc,stroke:#6a1b9a,stroke-width:2px,color:#000
-    style Video fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#000
-    style Conv fill:#66bb6a,stroke:#2e7d32,stroke-width:2px,color:#000
-    style MemMap fill:#fafafa,stroke:#212121,stroke-width:4px,color:#000
-
-    linkStyle 0,1,2,3,4 stroke:#424242,stroke-width:2px,color:#000
-```
+| Address Range | Size | Region | Description |
+|--------------|------|--------|-------------|
+| **0xFFFFF** | — | **Top of Memory** | 1 MB boundary |
+| 0xF0000 - 0xFFFFF | 64 KB | **ROM BIOS & BASIC** | • POST (Power-On Self Test) routines<br/>• BIOS interrupt services (INT 10h-1Ah)<br/>• IBM Cassette BASIC interpreter<br/>• Bootstrap loader |
+| 0xC0000 - 0xEFFFF | 192 KB | **Expansion ROM Area** | • Hard disk controller BIOS<br/>• Network adapter ROM<br/>• Video card BIOS extensions<br/>• Other expansion card ROMs |
+| 0xA0000 - 0xBFFFF | 128 KB | **Video Memory** | • 0xA0000: Graphics mode buffer (64 KB)<br/>• 0xB0000: Monochrome text (MDA) - 4 KB<br/>• 0xB8000: Color text (CGA) - 16 KB<br/>• 0xB8000: EGA/VGA text modes |
+| 0x00000 - 0x9FFFF | 640 KB | **Conventional Memory** | • 0x00000: Interrupt Vector Table (1 KB)<br/>• 0x00400: BIOS Data Area (256 bytes)<br/>• 0x00500: DOS kernel and data<br/>• User applications and programs<br/>• Application data and buffers<br/>• Available for general use |
+| **0x00000** | — | **Bottom of Memory** | Start of address space |
 
 ### Instruction Set
 
