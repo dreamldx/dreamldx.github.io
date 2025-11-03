@@ -57,7 +57,7 @@ The 8088 processor is internally divided into two independent functional units t
 #### Block Diagram: 8088 Internal Architecture
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'#fafafa','clusterBorder':'#212121','edgeLabelBackground':'#ffffff00','titleColor':'#000'},'flowchart':{'curve':'linear'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'#fafafa','clusterBorder':'#212121','edgeLabelBackground':'#ffffff00','titleColor':'#000','textColor':'#000','edgeLabelColor':'#000'},'flowchart':{'curve':'linear'}}}%%
 flowchart TB
     subgraph CPU["Intel 8088 Microprocessor - 4.77 MHz"]
         subgraph BIU["Bus Interface Unit (BIU)"]
