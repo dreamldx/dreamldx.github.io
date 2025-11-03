@@ -119,15 +119,25 @@ graph TB
     CtrlSig --> Memory
     CtrlSig --> IO
 
-    style BIU fill:#e1f5ff,stroke:#01579b,stroke-width:3px
-    style EU fill:#fff3e0,stroke:#e65100,stroke-width:3px
-    style ExtBus fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
-    style CPU fill:#fafafa,stroke:#212121,stroke-width:4px
-    style Queue fill:#b3e5fc,stroke:#0277bd,stroke-width:2px
-    style ALU fill:#ffcc80,stroke:#e65100,stroke-width:2px
-    style Control fill:#ffcc80,stroke:#e65100,stroke-width:2px
-    style Memory fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
-    style IO fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style BIU fill:#0277bd,stroke:#01579b,stroke-width:3px,color:#fff
+    style EU fill:#d84315,stroke:#bf360c,stroke-width:3px,color:#fff
+    style ExtBus fill:#6a1b9a,stroke:#4a148c,stroke-width:3px,color:#fff
+    style CPU fill:#e0e0e0,stroke:#212121,stroke-width:4px,color:#000
+    style Queue fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
+    style SegRegs fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
+    style IP fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
+    style AddrGen fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
+    style BusBuffer fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
+    style GenRegs fill:#e64a19,stroke:#bf360c,stroke-width:2px,color:#fff
+    style PtrRegs fill:#e64a19,stroke:#bf360c,stroke-width:2px,color:#fff
+    style ALU fill:#e64a19,stroke:#bf360c,stroke-width:2px,color:#fff
+    style FLAGS fill:#e64a19,stroke:#bf360c,stroke-width:2px,color:#fff
+    style Control fill:#e64a19,stroke:#bf360c,stroke-width:2px,color:#fff
+    style DataBus fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style AddrBus fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style CtrlSig fill:#7b1fa2,stroke:#4a148c,stroke-width:2px,color:#fff
+    style Memory fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
+    style IO fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
 ```
 
 #### Architecture Description
