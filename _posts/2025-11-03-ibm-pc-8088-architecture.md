@@ -57,7 +57,7 @@ The 8088 processor is internally divided into two independent functional units t
 #### Block Diagram: 8088 Internal Architecture
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'#e0e0e0','clusterBorder':'#212121','edgeLabelBackground':'#ffffff'},'flowchart':{'curve':'linear'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'#e0e0e0','clusterBorder':'#212121','edgeLabelBackground':'rgba(255,255,255,0)'},'flowchart':{'curve':'linear'}}}%%
 flowchart TB
     subgraph CPU["Intel 8088 Microprocessor - 4.77 MHz"]
         subgraph BIU["Bus Interface Unit (BIU)"]
@@ -71,10 +71,10 @@ flowchart TB
 
             BusBuffer["8-bit Data Bus Buffer<br/>━━━━━━━━━━━━━━"]
 
-            Queue ---|" "| SegRegs
-            SegRegs ---|" "| IP
-            IP ---|" "| AddrGen
-            AddrGen ---|" "| BusBuffer
+            Queue ---|c1| SegRegs
+            SegRegs ---|c2| IP
+            IP ---|c3| AddrGen
+            AddrGen ---|c4| BusBuffer
         end
 
         subgraph EU["Execution Unit (EU)"]
@@ -88,10 +88,10 @@ flowchart TB
 
             Control["Control Unit<br/>━━━━━━━━━━━<br/>• Instruction Decoder<br/>• Microcode Engine<br/>• Timing & Control"]
 
-            GenRegs ---|" "| ALU
-            PtrRegs ---|" "| ALU
-            ALU ---|" "| FLAGS
-            FLAGS ---|" "| Control
+            GenRegs ---|d1| ALU
+            PtrRegs ---|d2| ALU
+            ALU ---|d3| FLAGS
+            FLAGS ---|c5| Control
         end
 
         subgraph ExtBus["External Bus Interface"]
@@ -100,25 +100,31 @@ flowchart TB
             CtrlSig["Control Signals<br/>RD, WR, M/IO, etc."]
         end
 
-        Queue -.-|"Instruction Flow"| Control
-        Control -.-|"Data Requests"| Queue
-        BusBuffer ---|" "| DataBus
-        AddrGen ---|" "| AddrBus
-        BIU ---|" "| CtrlSig
+        Queue ---|c6 Instruction Flow| Control
+        Control ---|c7 Data Requests| Queue
+        BusBuffer ---|d4| DataBus
+        AddrGen ---|d5| AddrBus
+        BIU ---|c8| CtrlSig
 
-        GenRegs -.->|"Internal 16-bit Data Path"| Queue
-        PtrRegs -.->|"Internal 16-bit Data Path"| SegRegs
+        GenRegs ---|d6 Internal 16-bit Data Path| Queue
+        PtrRegs ---|d7 Internal 16-bit Data Path| SegRegs
     end
 
     Memory["External Memory<br/>(RAM/ROM)"]
     IO["I/O Devices<br/>(Peripherals)"]
 
-    DataBus <---|" "| Memory
-    DataBus <---|" "| IO
-    AddrBus ---|" "| Memory
-    AddrBus ---|" "| IO
-    CtrlSig ---|" "| Memory
-    CtrlSig ---|" "| IO
+    DataBus <---|d8| Memory
+    DataBus <---|d9| IO
+    AddrBus ---|d10| Memory
+    AddrBus ---|d11| IO
+    CtrlSig ---|c9| Memory
+    CtrlSig ---|c10| IO
+
+    %% Data Path Styling (Green - thicker lines)
+    linkStyle 10,11,12,13,14,15,16,17,18,19 stroke:#2e7d32,stroke-width:4px
+
+    %% Control Path Styling (Orange - medium lines)
+    linkStyle 0,1,2,3,4,5,6,7,8,9,20,21 stroke:#ff6f00,stroke-width:3px
 
     style BIU fill:#0277bd,stroke:#01579b,stroke-width:3px,color:#fff
     style EU fill:#d84315,stroke:#bf360c,stroke-width:3px,color:#fff
@@ -140,6 +146,10 @@ flowchart TB
     style Memory fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
     style IO fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
 ```
+
+**Diagram Legend:**
+- 🟢 **Green Lines (Thick)**: Data paths - actual data flow between components
+- 🟠 **Orange Lines (Medium)**: Control paths - control signals and instruction flow
 
 #### Architecture Description
 
