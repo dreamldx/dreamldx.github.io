@@ -1459,13 +1459,1109 @@ function Component() {
 7. **Don't over-optimize**: Profile before adding useMemo/useCallback
 8. **Split complex state**: Multiple useState or useReducer for complex state
 
-### React's Rendering Process
+### React's Rendering Process: A Deep Dive
 
-1. **Initial Render**: React creates a Virtual DOM tree from your components
-2. **State/Props Change**: When data changes, React creates a new Virtual DOM tree
-3. **Diffing**: React compares the new tree with the previous one
-4. **Reconciliation**: React calculates the minimum number of changes needed
-5. **Commit**: React updates only the changed parts of the real DOM
+React's rendering process is a sophisticated system that efficiently updates the user interface when application state changes. Understanding this process is crucial for writing performant React applications. Let's explore each stage in detail.
+
+#### Overview: Two-Phase Rendering
+
+React's rendering process is divided into two main phases:
+
+1. **Render Phase** (Interruptible) - Building the Virtual DOM and calculating changes
+2. **Commit Phase** (Non-Interruptible) - Applying changes to the actual DOM
+
+This separation allows React to:
+- Pause and resume work as needed
+- Prioritize updates based on importance
+- Split work into chunks to keep the UI responsive
+- Abort unnecessary work if updates arrive
+
+#### Phase 1: The Render Phase (Reconciliation)
+
+The Render Phase is where React figures out what needs to change. This phase is **interruptible** and can be paused, aborted, or restarted.
+
+##### Stage 1: Triggering a Render
+
+A render can be triggered by several events:
+
+```javascript
+// 1. Initial mount
+ReactDOM.render(<App />, document.getElementById('root'));
+
+// 2. State update
+function Component() {
+    const [count, setCount] = useState(0);
+    // Clicking triggers a render
+    return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+
+// 3. Parent re-render
+function Parent() {
+    const [state, setState] = useState(0);
+    // When Parent re-renders, Child re-renders too
+    return <Child value={state} />;
+}
+
+// 4. Context value change
+const Context = React.createContext();
+function Consumer() {
+    const value = useContext(Context); // Re-renders when context changes
+    return <div>{value}</div>;
+}
+
+// 5. Force update (class components)
+class Component extends React.Component {
+    handleClick = () => {
+        this.forceUpdate(); // Forces re-render
+    }
+}
+```
+
+##### Stage 2: Rendering Components
+
+React calls your component functions/render methods to build a new Virtual DOM tree.
+
+```javascript
+function App() {
+    const [user, setUser] = useState({ name: 'Alice', age: 30 });
+
+    // This function is called during the Render Phase
+    // It should be pure - no side effects!
+    console.log('Rendering App'); // OK for debugging
+    // setUser({ ...user, age: 31 }); // ❌ NEVER do this!
+
+    return (
+        <div>
+            <UserProfile user={user} />
+            <UserSettings user={user} />
+        </div>
+    );
+}
+
+// React creates a structure like:
+const virtualDOM = {
+    type: 'div',
+    props: {},
+    children: [
+        {
+            type: UserProfile,
+            props: { user: { name: 'Alice', age: 30 } },
+            children: []
+        },
+        {
+            type: UserSettings,
+            props: { user: { name: 'Alice', age: 30 } },
+            children: []
+        }
+    ]
+};
+```
+
+**Important Rules During Render Phase:**
+- Components must be **pure functions** during rendering
+- No side effects (API calls, subscriptions, timers)
+- No direct DOM manipulation
+- Same props should always return same output
+
+##### Stage 3: Reconciliation (Diffing Algorithm)
+
+React compares the new Virtual DOM tree with the previous one to find differences. This is where React's efficiency shines.
+
+**The Diffing Algorithm Heuristics:**
+
+1. **Different Element Types → Replace Completely**
+
+```javascript
+// Old tree
+<div>
+    <Counter />
+</div>
+
+// New tree
+<span>
+    <Counter />
+</span>
+
+// Result: Entire tree is replaced
+// - div is unmounted (with Counter inside)
+// - span is created with new Counter instance
+```
+
+2. **Same Element Type → Update Props**
+
+```javascript
+// Old element
+<div className="before" title="old">Content</div>
+
+// New element
+<div className="after" title="new">Content</div>
+
+// Result: Only className and title attributes are updated
+// The DOM node itself is kept and reused
+```
+
+3. **Component Elements → Recurse**
+
+```javascript
+// Old tree
+<Parent value={1}>
+    <Child />
+</Parent>
+
+// New tree
+<Parent value={2}>
+    <Child />
+</Parent>
+
+// Result:
+// - Parent instance is kept, receives new props
+// - Parent re-renders
+// - Child is compared recursively
+```
+
+4. **Keys → Efficient List Updates**
+
+```javascript
+// Without keys - inefficient
+// Old list
+<ul>
+    <li>Alice</li>
+    <li>Bob</li>
+</ul>
+
+// New list (added Charlie at beginning)
+<ul>
+    <li>Charlie</li>
+    <li>Alice</li>
+    <li>Bob</li>
+</ul>
+
+// React sees:
+// - First li changed from "Alice" to "Charlie" → UPDATE
+// - Second li changed from "Bob" to "Alice" → UPDATE
+// - Third li is new "Bob" → CREATE
+// Result: All items updated/recreated!
+
+// With keys - efficient
+// Old list
+<ul>
+    <li key="alice">Alice</li>
+    <li key="bob">Bob</li>
+</ul>
+
+// New list
+<ul>
+    <li key="charlie">Charlie</li>
+    <li key="alice">Alice</li>
+    <li key="bob">Bob</li>
+</ul>
+
+// React sees:
+// - "charlie" is new → CREATE and insert at beginning
+// - "alice" moved → MOVE
+// - "bob" moved → MOVE
+// Result: Only one creation, two moves!
+```
+
+**Key Rules:**
+- Keys must be unique among siblings
+- Keys should be stable (don't use array index if list can reorder)
+- Keys should be consistent across renders
+
+```javascript
+// ❌ Bad: Using index as key
+{items.map((item, index) => (
+    <Item key={index} data={item} />
+))}
+
+// ✅ Good: Using stable ID
+{items.map(item => (
+    <Item key={item.id} data={item} />
+))}
+
+// ✅ Good: Creating stable key if no ID exists
+{items.map(item => (
+    <Item key={`${item.name}-${item.category}`} data={item} />
+))}
+```
+
+##### Stage 4: Building the Work-in-Progress Tree (Fiber Architecture)
+
+React Fiber (introduced in React 16) is the reimplementation of React's core algorithm. It enables incremental rendering.
+
+**What is a Fiber?**
+
+A Fiber is a JavaScript object representing a unit of work. Each component instance has a corresponding Fiber.
+
+```javascript
+// Simplified Fiber structure
+const fiber = {
+    // Identity
+    type: UserProfile,              // Component type
+    key: 'user-123',                // Key prop
+
+    // Relationships
+    parent: parentFiber,            // Parent fiber
+    child: firstChildFiber,         // First child
+    sibling: nextSiblingFiber,      // Next sibling
+    alternate: oldFiber,            // Previous version of this fiber
+
+    // State
+    memoizedState: { count: 0 },   // Current state
+    memoizedProps: { user: {...} }, // Current props
+    pendingProps: { user: {...} },  // New props
+
+    // Effects
+    flags: Update | Placement,      // What needs to be done
+    effectTag: 0b0101,             // Bitwise flags
+    nextEffect: nextFiberWithEffect,// Linked list of effects
+
+    // Scheduling
+    lanes: 0b0100,                 // Priority lanes
+    childLanes: 0b0110,            // Child priorities
+
+    // Work tracking
+    updateQueue: [update1, update2], // Pending updates
+    dependencies: [dep1, dep2]      // Context dependencies
+};
+```
+
+**Fiber Tree Traversal:**
+
+React walks the Fiber tree using a depth-first traversal:
+
+```javascript
+// Simplified Fiber work loop
+function workLoop(fiber) {
+    let currentFiber = fiber;
+
+    while (currentFiber !== null) {
+        // 1. Perform work on current fiber
+        performUnitOfWork(currentFiber);
+
+        // 2. If there's a child, go to child
+        if (currentFiber.child) {
+            currentFiber = currentFiber.child;
+            continue;
+        }
+
+        // 3. If no child, check siblings
+        while (currentFiber) {
+            // Complete work on current fiber
+            completeWork(currentFiber);
+
+            // If there's a sibling, move to it
+            if (currentFiber.sibling) {
+                currentFiber = currentFiber.sibling;
+                break;
+            }
+
+            // Otherwise, go back to parent
+            currentFiber = currentFiber.parent;
+        }
+    }
+}
+
+// Example tree traversal order:
+//       A
+//      / \
+//     B   C
+//    / \   \
+//   D   E   F
+//
+// Order: A → B → D (complete) → E (complete) → B (complete)
+//        → C → F (complete) → C (complete) → A (complete)
+```
+
+**Interruptible Work:**
+
+Fiber enables React to split work into chunks and pause when needed:
+
+```javascript
+function workLoopConcurrent() {
+    // Work until we need to yield
+    while (workInProgress !== null && !shouldYield()) {
+        performUnitOfWork(workInProgress);
+    }
+}
+
+function shouldYield() {
+    // Yield if:
+    // - Time slice expired (typically 5ms)
+    // - Higher priority update arrived
+    // - Browser needs to paint
+    return (
+        currentTime >= deadline ||
+        hasHigherPriorityWork ||
+        needsPaint
+    );
+}
+```
+
+##### Stage 5: Marking Effects
+
+During reconciliation, React marks Fibers that need DOM updates:
+
+```javascript
+// Effect flags (bitwise)
+const NoFlags = 0b000000000000;
+const Placement = 0b000000000010;    // Insert into DOM
+const Update = 0b000000000100;        // Update existing DOM
+const Deletion = 0b000000001000;      // Remove from DOM
+const ContentReset = 0b000000010000;  // Reset text content
+const Callback = 0b000000100000;      // Has useEffect callbacks
+const Ref = 0b000010000000;          // Update ref
+const Snapshot = 0b000100000000;     // getSnapshotBeforeUpdate
+const Passive = 0b001000000000;      // useEffect (passive)
+const Hydrating = 0b010000000000;    // Hydration
+const Visibility = 0b100000000000;   // Offscreen content
+
+// Marking a fiber with effects
+function markUpdate(fiber) {
+    fiber.flags |= Update;  // Bitwise OR to add flag
+}
+
+// React builds an "effect list" - a linked list of fibers with effects
+// This makes the commit phase faster
+function buildEffectList(root) {
+    let firstEffect = null;
+    let lastEffect = null;
+
+    traverseFiber(root, (fiber) => {
+        if (fiber.flags !== NoFlags) {
+            if (lastEffect !== null) {
+                lastEffect.nextEffect = fiber;
+            } else {
+                firstEffect = fiber;
+            }
+            lastEffect = fiber;
+        }
+    });
+
+    return firstEffect;
+}
+```
+
+#### Phase 2: The Commit Phase
+
+The Commit Phase is where React applies changes to the actual DOM. This phase is **synchronous and non-interruptible** to ensure UI consistency.
+
+The Commit Phase has three sub-phases:
+
+##### Sub-Phase 1: Before Mutation
+
+Before touching the DOM, React:
+
+1. **Calls getSnapshotBeforeUpdate** (class components)
+2. **Schedules useEffect cleanup** functions
+
+```javascript
+class ScrollLogger extends React.Component {
+    getSnapshotBeforeUpdate(prevProps, prevState) {
+        // Capture scroll position before DOM updates
+        if (prevProps.list.length < this.props.list.length) {
+            return this.listRef.scrollHeight;
+        }
+        return null;
+    }
+
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        // Use snapshot after DOM updates
+        if (snapshot !== null) {
+            this.listRef.scrollTop +=
+                this.listRef.scrollHeight - snapshot;
+        }
+    }
+
+    render() {
+        return (
+            <div ref={ref => this.listRef = ref}>
+                {this.props.list.map(item => (
+                    <Item key={item.id} {...item} />
+                ))}
+            </div>
+        );
+    }
+}
+```
+
+##### Sub-Phase 2: Mutation
+
+This is where React actually modifies the DOM:
+
+```javascript
+// For each fiber in the effect list:
+function commitMutationEffects(fiber) {
+    const flags = fiber.flags;
+
+    // 1. Handle ref updates
+    if (flags & Ref) {
+        const current = fiber.alternate;
+        if (current !== null) {
+            // Detach old ref
+            commitDetachRef(current);
+        }
+    }
+
+    // 2. Handle DOM operations
+    switch (flags & (Placement | Update | Deletion)) {
+        case Placement: {
+            // Insert new node
+            commitPlacement(fiber);
+            fiber.flags &= ~Placement; // Clear flag
+            break;
+        }
+        case Update: {
+            // Update existing node
+            const current = fiber.alternate;
+            commitWork(current, fiber);
+            break;
+        }
+        case Deletion: {
+            // Remove node
+            commitDeletion(fiber);
+            break;
+        }
+    }
+}
+
+// Actual DOM mutations
+function commitWork(current, finishedWork) {
+    const instance = finishedWork.stateNode;
+    const newProps = finishedWork.memoizedProps;
+    const oldProps = current !== null ? current.memoizedProps : newProps;
+
+    // Update DOM properties
+    updateDOMProperties(
+        instance,
+        oldProps,
+        newProps
+    );
+}
+
+function updateDOMProperties(domElement, oldProps, newProps) {
+    // Remove old properties
+    for (let propKey in oldProps) {
+        if (newProps.hasOwnProperty(propKey) ||
+            !oldProps.hasOwnProperty(propKey)) {
+            continue;
+        }
+
+        if (propKey === 'style') {
+            // Clear styles
+            Object.keys(oldProps.style).forEach(styleName => {
+                domElement.style[styleName] = '';
+            });
+        } else if (propKey.startsWith('on')) {
+            // Remove event listener
+            const eventType = propKey.substring(2).toLowerCase();
+            domElement.removeEventListener(eventType, oldProps[propKey]);
+        } else {
+            // Remove attribute
+            domElement.removeAttribute(propKey);
+        }
+    }
+
+    // Add new properties
+    for (let propKey in newProps) {
+        const newProp = newProps[propKey];
+        const oldProp = oldProps[propKey];
+
+        if (newProp === oldProp) continue;
+
+        if (propKey === 'style') {
+            // Update styles
+            Object.keys(newProp).forEach(styleName => {
+                domElement.style[styleName] = newProp[styleName];
+            });
+        } else if (propKey === 'children') {
+            // Update text content
+            if (typeof newProp === 'string' || typeof newProp === 'number') {
+                domElement.textContent = newProp;
+            }
+        } else if (propKey.startsWith('on')) {
+            // Add event listener
+            const eventType = propKey.substring(2).toLowerCase();
+            domElement.addEventListener(eventType, newProp);
+        } else {
+            // Set attribute
+            domElement.setAttribute(propKey, newProp);
+        }
+    }
+}
+```
+
+##### Sub-Phase 3: Layout
+
+After the DOM is mutated, React:
+
+1. **Attaches refs**
+2. **Calls componentDidMount / componentDidUpdate** (class components)
+3. **Calls useLayoutEffect** (synchronously)
+
+```javascript
+function commitLayoutEffects(fiber) {
+    const flags = fiber.flags;
+
+    // 1. Attach refs
+    if (flags & Ref) {
+        commitAttachRef(fiber);
+    }
+
+    // 2. Call lifecycle methods
+    if (flags & Update) {
+        const current = fiber.alternate;
+
+        if (current === null) {
+            // Mount
+            if (fiber.tag === ClassComponent) {
+                fiber.stateNode.componentDidMount();
+            } else if (fiber.tag === FunctionComponent) {
+                // Schedule useLayoutEffect
+                commitHookEffectListMount(fiber);
+            }
+        } else {
+            // Update
+            if (fiber.tag === ClassComponent) {
+                fiber.stateNode.componentDidUpdate(
+                    current.memoizedProps,
+                    current.memoizedState,
+                    fiber.updateQueue
+                );
+            } else if (fiber.tag === FunctionComponent) {
+                // Schedule useLayoutEffect
+                commitHookEffectListUpdate(fiber);
+            }
+        }
+    }
+}
+
+function commitAttachRef(fiber) {
+    const ref = fiber.ref;
+    if (ref !== null) {
+        const instance = fiber.stateNode;
+
+        if (typeof ref === 'function') {
+            // Callback ref
+            ref(instance);
+        } else {
+            // Object ref
+            ref.current = instance;
+        }
+    }
+}
+```
+
+##### Sub-Phase 4: Post-Commit (Passive Effects)
+
+After the commit phase completes, React schedules passive effects (useEffect) to run asynchronously:
+
+```javascript
+// useEffect is scheduled after paint
+function flushPassiveEffects() {
+    // 1. Run cleanup functions from previous render
+    commitPassiveUnmountEffects(rootWithPassiveEffects);
+
+    // 2. Run new effect functions
+    commitPassiveMountEffects(rootWithPassiveEffects);
+}
+
+// This happens after browser has painted
+requestIdleCallback(() => {
+    flushPassiveEffects();
+});
+```
+
+#### Priority and Scheduling
+
+React uses a lane-based priority system to schedule work:
+
+```javascript
+// Priority Lanes (from highest to lowest)
+const SyncLane = 0b0000000000000000000000000000001;  // Sync (click, input)
+const InputContinuousLane = 0b0000000000000000000000000000100; // Drag, scroll
+const DefaultLane = 0b0000000000000000000000000010000; // Default updates
+const TransitionLane = 0b0000000000000000000001000000000; // Transitions
+const IdleLane = 0b0100000000000000000000000000000; // Idle work
+
+// Example: Scheduling updates with different priorities
+function App() {
+    const [text, setText] = useState('');
+    const [items, setItems] = useState([]);
+
+    const handleChange = (e) => {
+        const value = e.target.value;
+
+        // High priority - user input should be immediate
+        setText(value);
+
+        // Lower priority - filtering can wait
+        startTransition(() => {
+            const filtered = expensiveFilter(items, value);
+            setFilteredItems(filtered);
+        });
+    };
+
+    return <input value={text} onChange={handleChange} />;
+}
+```
+
+#### Batching
+
+React batches multiple state updates to avoid unnecessary re-renders:
+
+```javascript
+function Counter() {
+    const [count, setCount] = useState(0);
+    const [flag, setFlag] = useState(false);
+
+    function handleClick() {
+        // React 18: All updates are batched automatically
+        setCount(c => c + 1);     // Doesn't re-render yet
+        setFlag(f => !f);         // Doesn't re-render yet
+        // Both updates are batched → Only one re-render
+    }
+
+    // Even in async code (React 18+)
+    async function handleAsyncClick() {
+        await fetch('/api/data');
+        setCount(c => c + 1);     // Batched
+        setFlag(f => !f);         // Batched
+        // Only one re-render after both updates
+    }
+
+    console.log('Rendering'); // Only logs once per click
+
+    return (
+        <div>
+            <p>Count: {count}</p>
+            <p>Flag: {flag.toString()}</p>
+            <button onClick={handleClick}>Update</button>
+            <button onClick={handleAsyncClick}>Async Update</button>
+        </div>
+    );
+}
+
+// Opt out of batching if needed (React 18+)
+import { flushSync } from 'react-dom';
+
+function handleClick() {
+    flushSync(() => {
+        setCount(c => c + 1);  // Renders immediately
+    });
+
+    setFlag(f => !f);  // Separate render
+}
+```
+
+#### Customization and Optimization Options
+
+##### 1. React.memo - Prevent Unnecessary Re-renders
+
+```javascript
+// Without memo: Child re-renders whenever Parent re-renders
+function Child({ name }) {
+    console.log('Child rendered');
+    return <div>{name}</div>;
+}
+
+function Parent() {
+    const [count, setCount] = useState(0);
+
+    return (
+        <div>
+            <Child name="Alice" />
+            <button onClick={() => setCount(count + 1)}>
+                Count: {count}
+            </button>
+        </div>
+    );
+}
+// Child re-renders on every button click!
+
+// With memo: Child only re-renders if props change
+const Child = React.memo(function Child({ name }) {
+    console.log('Child rendered');
+    return <div>{name}</div>;
+});
+// Child doesn't re-render when count changes
+
+// Custom comparison function
+const Child = React.memo(
+    function Child({ user }) {
+        return <div>{user.name}</div>;
+    },
+    (prevProps, nextProps) => {
+        // Return true if props are equal (skip render)
+        // Return false if props are different (render)
+        return prevProps.user.id === nextProps.user.id;
+    }
+);
+```
+
+##### 2. useMemo - Memoize Expensive Calculations
+
+```javascript
+function ProductList({ products, filter }) {
+    // Without useMemo: filters on every render
+    const filteredProducts = products.filter(p =>
+        p.category === filter
+    );
+
+    // With useMemo: only filters when dependencies change
+    const filteredProducts = useMemo(() => {
+        console.log('Filtering products...');
+        return products.filter(p => p.category === filter);
+    }, [products, filter]);
+
+    return (
+        <div>
+            {filteredProducts.map(p => (
+                <Product key={p.id} {...p} />
+            ))}
+        </div>
+    );
+}
+```
+
+##### 3. useCallback - Memoize Functions
+
+```javascript
+function Parent() {
+    const [count, setCount] = useState(0);
+    const [text, setText] = useState('');
+
+    // Without useCallback: new function on every render
+    const handleClick = () => {
+        console.log('Clicked');
+    };
+
+    // With useCallback: same function reference
+    const handleClick = useCallback(() => {
+        console.log('Clicked');
+    }, []); // Dependencies
+
+    return (
+        <div>
+            <input value={text} onChange={e => setText(e.target.value)} />
+            <Child onClick={handleClick} />
+            <p>{count}</p>
+        </div>
+    );
+}
+
+const Child = React.memo(({ onClick }) => {
+    console.log('Child rendered');
+    return <button onClick={onClick}>Click</button>;
+});
+```
+
+##### 4. shouldComponentUpdate - Class Component Optimization
+
+```javascript
+class ProductList extends React.Component {
+    shouldComponentUpdate(nextProps, nextState) {
+        // Return false to skip render
+        // Return true to proceed with render
+
+        // Only re-render if products array changed
+        return nextProps.products !== this.props.products;
+    }
+
+    render() {
+        return (
+            <div>
+                {this.props.products.map(p => (
+                    <Product key={p.id} {...p} />
+                ))}
+            </div>
+        );
+    }
+}
+
+// PureComponent does shallow comparison automatically
+class ProductList extends React.PureComponent {
+    // Automatically implements shouldComponentUpdate
+    // with shallow prop and state comparison
+    render() {
+        return (
+            <div>
+                {this.props.products.map(p => (
+                    <Product key={p.id} {...p} />
+                ))}
+            </div>
+        );
+    }
+}
+```
+
+##### 5. Code Splitting and Lazy Loading
+
+```javascript
+// Split large components into separate bundles
+const HeavyComponent = React.lazy(() => import('./HeavyComponent'));
+
+function App() {
+    const [show, setShow] = useState(false);
+
+    return (
+        <div>
+            <button onClick={() => setShow(true)}>
+                Load Heavy Component
+            </button>
+
+            {show && (
+                <Suspense fallback={<div>Loading...</div>}>
+                    <HeavyComponent />
+                </Suspense>
+            )}
+        </div>
+    );
+}
+
+// Route-based code splitting
+const Home = React.lazy(() => import('./routes/Home'));
+const About = React.lazy(() => import('./routes/About'));
+const Contact = React.lazy(() => import('./routes/Contact'));
+
+function App() {
+    return (
+        <Router>
+            <Suspense fallback={<Spinner />}>
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/contact" element={<Contact />} />
+                </Routes>
+            </Suspense>
+        </Router>
+    );
+}
+```
+
+##### 6. Virtualization - Render Only Visible Items
+
+```javascript
+// For long lists, only render visible items
+import { FixedSizeList } from 'react-window';
+
+function VirtualizedList({ items }) {
+    const Row = ({ index, style }) => (
+        <div style={style}>
+            {items[index].name}
+        </div>
+    );
+
+    return (
+        <FixedSizeList
+            height={600}           // Viewport height
+            itemCount={items.length}
+            itemSize={50}          // Each item height
+            width="100%"
+        >
+            {Row}
+        </FixedSizeList>
+    );
+}
+
+// Without virtualization: renders all 10,000 items
+// With virtualization: only renders ~12 visible items
+```
+
+##### 7. Concurrent Features (React 18+)
+
+```javascript
+import { useTransition, useDeferredValue } from 'react';
+
+// useTransition - Mark updates as non-urgent
+function SearchResults() {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [isPending, startTransition] = useTransition();
+
+    function handleChange(e) {
+        const value = e.target.value;
+
+        // Urgent: update input immediately
+        setQuery(value);
+
+        // Non-urgent: defer expensive search
+        startTransition(() => {
+            const newResults = searchItems(value);
+            setResults(newResults);
+        });
+    }
+
+    return (
+        <div>
+            <input value={query} onChange={handleChange} />
+            {isPending ? <Spinner /> : null}
+            <ResultsList results={results} />
+        </div>
+    );
+}
+
+// useDeferredValue - Defer updating expensive values
+function SearchResults() {
+    const [query, setQuery] = useState('');
+    const deferredQuery = useDeferredValue(query);
+
+    // Expensive filtering happens with deferred value
+    const results = useMemo(() => {
+        return searchItems(deferredQuery);
+    }, [deferredQuery]);
+
+    return (
+        <div>
+            <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+            />
+            <ResultsList results={results} />
+        </div>
+    );
+}
+```
+
+##### 8. Suspense for Data Fetching
+
+```javascript
+// Suspense allows components to "wait" for data
+const resource = fetchProfileData();
+
+function ProfilePage() {
+    return (
+        <Suspense fallback={<h1>Loading profile...</h1>}>
+            <ProfileDetails />
+            <Suspense fallback={<h2>Loading posts...</h2>}>
+                <ProfilePosts />
+            </Suspense>
+        </Suspense>
+    );
+}
+
+function ProfileDetails() {
+    // This will suspend rendering until data is ready
+    const user = resource.user.read();
+    return <h1>{user.name}</h1>;
+}
+
+function ProfilePosts() {
+    const posts = resource.posts.read();
+    return (
+        <ul>
+            {posts.map(post => (
+                <li key={post.id}>{post.title}</li>
+            ))}
+        </ul>
+    );
+}
+
+// Create suspense-compatible resource
+function wrapPromise(promise) {
+    let status = 'pending';
+    let result;
+
+    let suspender = promise.then(
+        r => {
+            status = 'success';
+            result = r;
+        },
+        e => {
+            status = 'error';
+            result = e;
+        }
+    );
+
+    return {
+        read() {
+            if (status === 'pending') {
+                throw suspender; // Suspend!
+            } else if (status === 'error') {
+                throw result;
+            } else {
+                return result;
+            }
+        }
+    };
+}
+```
+
+#### Performance Monitoring
+
+```javascript
+import { Profiler } from 'react';
+
+function App() {
+    function onRenderCallback(
+        id,                    // Component id
+        phase,                 // "mount" or "update"
+        actualDuration,        // Time spent rendering
+        baseDuration,          // Estimated time without memoization
+        startTime,             // When React began rendering
+        commitTime,            // When React committed the update
+        interactions           // Set of interactions
+    ) {
+        console.log(`${id} took ${actualDuration}ms to ${phase}`);
+
+        // Send to analytics
+        sendToAnalytics({
+            component: id,
+            phase,
+            duration: actualDuration
+        });
+    }
+
+    return (
+        <Profiler id="App" onRender={onRenderCallback}>
+            <Header />
+            <Profiler id="MainContent" onRender={onRenderCallback}>
+                <MainContent />
+            </Profiler>
+            <Footer />
+        </Profiler>
+    );
+}
+```
+
+#### Summary: Rendering Process Flow
+
+```
+1. TRIGGER
+   ↓
+2. RENDER PHASE (Interruptible)
+   ├─ Call component functions
+   ├─ Build Virtual DOM tree
+   ├─ Reconciliation (diffing)
+   ├─ Build Fiber tree
+   └─ Mark effects
+   ↓
+3. COMMIT PHASE (Non-interruptible)
+   ├─ Before Mutation
+   │  ├─ getSnapshotBeforeUpdate
+   │  └─ Schedule useEffect cleanup
+   ├─ Mutation
+   │  ├─ Insert/Update/Delete DOM nodes
+   │  └─ Detach refs
+   └─ Layout
+      ├─ Attach refs
+      ├─ componentDidMount/Update
+      └─ useLayoutEffect
+   ↓
+4. POST-COMMIT (Async)
+   └─ useEffect (after paint)
+```
+
+**Key Takeaways:**
+
+1. **Render Phase is interruptible** - React can pause and resume work
+2. **Commit Phase is synchronous** - Ensures UI consistency
+3. **Use keys properly** - Essential for efficient list updates
+4. **Optimize strategically** - Use memo/useMemo/useCallback when profiling shows benefit
+5. **Leverage concurrent features** - useTransition and useDeferredValue for better UX
+6. **Code split large components** - Reduce initial bundle size
+7. **Virtualize long lists** - Only render what's visible
+8. **Profile your app** - Use React DevTools Profiler to identify bottlenecks
 
 ## The Virtual DOM: Principle and Implementation
 
