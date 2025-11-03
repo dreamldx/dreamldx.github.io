@@ -57,7 +57,8 @@ The 8088 processor is internally divided into two independent functional units t
 #### Block Diagram: 8088 Internal Architecture
 
 ```mermaid
-graph TB
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'#e0e0e0','clusterBorder':'#212121','edgeLabelBackground':'#ffffff'},'flowchart':{'curve':'linear'}}}%%
+flowchart TB
     subgraph CPU["Intel 8088 Microprocessor - 4.77 MHz"]
         subgraph BIU["Bus Interface Unit (BIU)"]
             Queue["Instruction Queue<br/>(4-byte FIFO)<br/>┌───┬───┬───┬───┐<br/>│ Q │ Q │ Q │ Q │<br/>└───┴───┴───┴───┘"]
@@ -70,10 +71,10 @@ graph TB
 
             BusBuffer["8-bit Data Bus Buffer<br/>━━━━━━━━━━━━━━"]
 
-            Queue --> SegRegs
-            SegRegs --> IP
-            IP --> AddrGen
-            AddrGen --> BusBuffer
+            Queue ---|" "| SegRegs
+            SegRegs ---|" "| IP
+            IP ---|" "| AddrGen
+            AddrGen ---|" "| BusBuffer
         end
 
         subgraph EU["Execution Unit (EU)"]
@@ -87,10 +88,10 @@ graph TB
 
             Control["Control Unit<br/>━━━━━━━━━━━<br/>• Instruction Decoder<br/>• Microcode Engine<br/>• Timing & Control"]
 
-            GenRegs --> ALU
-            PtrRegs --> ALU
-            ALU --> FLAGS
-            FLAGS --> Control
+            GenRegs ---|" "| ALU
+            PtrRegs ---|" "| ALU
+            ALU ---|" "| FLAGS
+            FLAGS ---|" "| Control
         end
 
         subgraph ExtBus["External Bus Interface"]
@@ -99,25 +100,25 @@ graph TB
             CtrlSig["Control Signals<br/>RD, WR, M/IO, etc."]
         end
 
-        Queue -.->|"Instruction Flow"| Control
-        Control -.->|"Data Requests"| Queue
-        BusBuffer --> DataBus
-        AddrGen --> AddrBus
-        BIU --> CtrlSig
+        Queue -.-|"Instruction Flow"| Control
+        Control -.-|"Data Requests"| Queue
+        BusBuffer ---|" "| DataBus
+        AddrGen ---|" "| AddrBus
+        BIU ---|" "| CtrlSig
 
-        GenRegs <-.->|"Internal 16-bit Data Path"| Queue
-        PtrRegs <-.->|"Internal 16-bit Data Path"| SegRegs
+        GenRegs -.->|"Internal 16-bit Data Path"| Queue
+        PtrRegs -.->|"Internal 16-bit Data Path"| SegRegs
     end
 
     Memory["External Memory<br/>(RAM/ROM)"]
     IO["I/O Devices<br/>(Peripherals)"]
 
-    DataBus <--> Memory
-    DataBus <--> IO
-    AddrBus --> Memory
-    AddrBus --> IO
-    CtrlSig --> Memory
-    CtrlSig --> IO
+    DataBus <---|" "| Memory
+    DataBus <---|" "| IO
+    AddrBus ---|" "| Memory
+    AddrBus ---|" "| IO
+    CtrlSig ---|" "| Memory
+    CtrlSig ---|" "| IO
 
     style BIU fill:#0277bd,stroke:#01579b,stroke-width:3px,color:#fff
     style EU fill:#d84315,stroke:#bf360c,stroke-width:3px,color:#fff
