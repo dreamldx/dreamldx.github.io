@@ -52,6 +52,117 @@ The Intel 8088 is a 16-bit microprocessor with several distinctive characteristi
 
 ### Internal Architecture
 
+The 8088 processor is internally divided into two independent functional units that work in parallel: the **Bus Interface Unit (BIU)** and the **Execution Unit (EU)**. This design allows instruction fetching and execution to overlap, improving overall performance.
+
+#### Block Diagram: 8088 Internal Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           INTEL 8088 MICROPROCESSOR                         │
+│                                                                             │
+│  ┌───────────────────────────────────┐  ┌──────────────────────────────┐  │
+│  │    BUS INTERFACE UNIT (BIU)       │  │   EXECUTION UNIT (EU)        │  │
+│  │                                   │  │                              │  │
+│  │  ┌─────────────────────────────┐  │  │  ┌────────────────────────┐  │  │
+│  │  │   Instruction Queue (4-byte)│  │  │  │  General Registers     │  │  │
+│  │  │   ┌───┬───┬───┬───┐         │◄─┼──┼──┤  ┌──────┬──────┐      │  │  │
+│  │  │   │ Q │ Q │ Q │ Q │  FIFO   │  │  │  │  │  AH  │  AL  │ AX   │  │  │
+│  │  │   └───┴───┴───┴───┘         │  │  │  │  ├──────┼──────┤      │  │  │
+│  │  └─────────────────────────────┘  │  │  │  │  BH  │  BL  │ BX   │  │  │
+│  │                 │                  │  │  │  ├──────┼──────┤      │  │  │
+│  │  ┌──────────────▼────────────┐    │  │  │  │  CH  │  CL  │ CX   │  │  │
+│  │  │   Segment Registers       │    │  │  │  ├──────┼──────┤      │  │  │
+│  │  │  ┌────────────────┐       │    │  │  │  │  DH  │  DL  │ DX   │  │  │
+│  │  │  │ CS (Code)      │       │    │  │  │  └──────┴──────┘      │  │  │
+│  │  │  ├────────────────┤       │    │  │  │                        │  │  │
+│  │  │  │ DS (Data)      │       │    │  │  │  ┌──────────────────┐ │  │  │
+│  │  │  ├────────────────┤       │    │  │  │  │ Pointer & Index  │ │  │  │
+│  │  │  │ SS (Stack)     │       │    │  │  │  │  SP - Stack Ptr  │ │  │  │
+│  │  │  ├────────────────┤       │    │  │  │  │  BP - Base Ptr   │ │  │  │
+│  │  │  │ ES (Extra)     │       │    │  │  │  │  SI - Source Idx │ │  │  │
+│  │  │  └────────────────┘       │    │  │  │  │  DI - Dest Index │ │  │  │
+│  │  └───────────────────────────┘    │  │  │  └──────────────────┘ │  │  │
+│  │                 │                  │  │  └────────────┬───────────┘  │  │
+│  │  ┌──────────────▼────────────┐    │  │               │              │  │
+│  │  │  Instruction Pointer (IP) │    │  │  ┌────────────▼───────────┐  │  │
+│  │  │        (16-bit)           │    │  │  │   Arithmetic Logic     │  │  │
+│  │  └───────────────────────────┘    │  │  │   Unit (ALU)           │  │  │
+│  │                 │                  │  │  │   • Add/Subtract       │  │  │
+│  │  ┌──────────────▼────────────┐    │  │  │   • Logic Ops          │  │  │
+│  │  │  Address Generation &     │    │  │  │   • Shift/Rotate       │  │  │
+│  │  │  Bus Control Logic        │    │  │  │   • Multiply/Divide    │  │  │
+│  │  │  ┌──────────────────────┐ │    │  │  └────────────┬───────────┘  │  │
+│  │  │  │ Adder (Segment<<4)   │ │    │  │               │              │  │
+│  │  │  │      + Offset        │ │    │  │  ┌────────────▼───────────┐  │  │
+│  │  │  └──────────────────────┘ │    │  │  │   FLAGS Register       │  │  │
+│  │  │  Generates 20-bit Address │    │  │  │  ┌──────────────────┐  │  │  │
+│  │  └───────────────┬───────────┘    │  │  │  │ OF DF IF TF SF   │  │  │  │
+│  │                  │                 │  │  │  │ ZF -- AF -- PF   │  │  │  │
+│  │  ┌───────────────▼───────────┐    │  │  │  │ -- CF            │  │  │  │
+│  │  │   8-bit Data Bus Buffer   │    │  │  │  └──────────────────┘  │  │  │
+│  │  └───────────────┬───────────┘    │  │  └────────────┬───────────┘  │  │
+│  └──────────────────┼─────────────────┘  │               │              │  │
+│                     │                     │  ┌────────────▼───────────┐  │  │
+│  ┌──────────────────▼─────────────────┐  │  │   Control Unit         │  │  │
+│  │       External Bus Control         │  │  │   • Instruction Decode │  │  │
+│  │  ┌──────────────────────────────┐  │  │  │   • Microcode Engine   │  │  │
+│  │  │    8-bit Data Bus (D0-D7)    │  │  │  │   • Timing & Control   │  │  │
+│  │  └──────────────────────────────┘  │  │  └────────────────────────┘  │  │
+│  │  ┌──────────────────────────────┐  │  └──────────────────────────────┘  │
+│  │  │  20-bit Address Bus          │  │                                    │
+│  │  │     (A0-A19)                 │  │  Internal 16-bit Data Bus          │
+│  │  └──────────────────────────────┘  │  ◄══════════════════════════════►  │
+│  │  ┌──────────────────────────────┐  │                                    │
+│  │  │  Control Signals             │  │                                    │
+│  │  │  (RD, WR, M/IO, etc.)        │  │                                    │
+│  │  └──────────────────────────────┘  │                                    │
+│  └─────────────────────────────────────┘                                    │
+│                                                                             │
+│  Clock Input: 4.77 MHz                      Power: +5V                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Architecture Description
+
+**Bus Interface Unit (BIU):**
+
+The BIU handles all bus operations and memory access:
+
+- **Instruction Queue**: 4-byte FIFO buffer that prefetches instructions while EU is executing
+- **Segment Registers**: Four 16-bit segment registers (CS, DS, SS, ES) for memory segmentation
+- **Instruction Pointer**: 16-bit pointer to the next instruction to fetch
+- **Address Generation**: Combines segment (shifted left 4 bits) with offset to create 20-bit physical address
+- **Bus Interface**: Manages the 8-bit external data bus and 20-bit address bus
+- **Prefetching**: Continuously fetches instructions when the bus is not busy
+
+**Execution Unit (EU):**
+
+The EU decodes and executes instructions from the queue:
+
+- **General-Purpose Registers**: Four 16-bit registers (AX, BX, CX, DX) accessible as 8-bit pairs
+- **Pointer and Index Registers**: SP, BP, SI, DI for stack and string operations
+- **ALU**: Performs arithmetic and logical operations
+- **FLAGS Register**: Stores condition codes and control flags
+- **Control Unit**: Decodes instructions and generates control signals
+- **Microcode Engine**: Executes complex instructions via microcode sequences
+
+**Data Flow:**
+
+1. BIU fetches instructions from memory and places them in the 4-byte queue
+2. EU reads instructions from the queue (FIFO order)
+3. EU decodes and executes instructions using ALU and registers
+4. If EU needs data from memory, it requests BIU to fetch it
+5. While EU executes, BIU prefetches next instructions (parallel operation)
+6. Internal 16-bit data path connects EU and BIU for 16-bit transfers
+7. External 8-bit data bus requires two cycles for 16-bit memory operations
+
+**Pipeline Advantage:**
+
+The separation of BIU and EU creates a primitive pipeline:
+- **Best Case**: EU always has instructions ready in queue (no wait)
+- **Worst Case**: Queue empty during jumps/branches (EU must wait for BIU)
+- **Typical**: ~30% performance improvement over purely sequential operation
+
 #### Register Set
 
 The 8088 contains 14 registers organized into four groups:
