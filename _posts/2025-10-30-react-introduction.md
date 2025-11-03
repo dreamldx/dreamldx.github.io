@@ -205,6 +205,1260 @@ function Counter() {
 <Counter initialValue={0} />
 ```
 
+### React Hooks: A Deep Dive
+
+React Hooks, introduced in React 16.8 (February 2019), revolutionized how we write React components. They allow you to use state and other React features in function components without writing classes.
+
+#### The Theory Behind Hooks
+
+Before Hooks, React had several problems:
+
+**1. Wrapper Hell**: HOCs and render props created deeply nested component trees
+**2. Complex Components**: Class components with lifecycle methods became hard to understand
+**3. Confusing Classes**: Understanding `this` binding and lifecycle methods was difficult
+**4. Logic Reuse**: Sharing stateful logic between components was cumbersome
+
+Hooks solve these problems by:
+- **Extracting Logic**: Hooks let you extract stateful logic from components
+- **No Classes**: Use state without classes, avoiding `this` confusion
+- **Composability**: Combine Hooks to create custom logic
+- **Gradual Adoption**: Can use Hooks alongside classes
+
+#### Under the Hood: How Hooks Work
+
+React Hooks rely on a simple mechanism: **call order preservation**. React maintains a list of hooks for each component and relies on the order in which hooks are called to preserve state between renders.
+
+```javascript
+// Simplified React Hooks implementation
+let currentComponent = null;
+let currentHookIndex = 0;
+
+// Component metadata storage
+const componentState = new Map();
+
+function getComponentHooks(component) {
+    if (!componentState.has(component)) {
+        componentState.set(component, {
+            hooks: [],
+            currentHookIndex: 0
+        });
+    }
+    return componentState.get(component);
+}
+
+// useState implementation
+function useState(initialValue) {
+    const component = currentComponent;
+    const hooks = getComponentHooks(component);
+    const hookIndex = hooks.currentHookIndex;
+
+    // Initialize hook if first render
+    if (hooks.hooks[hookIndex] === undefined) {
+        hooks.hooks[hookIndex] = {
+            value: typeof initialValue === 'function'
+                ? initialValue()
+                : initialValue
+        };
+    }
+
+    const hook = hooks.hooks[hookIndex];
+
+    // setState function
+    const setState = (newValue) => {
+        const valueToSet = typeof newValue === 'function'
+            ? newValue(hook.value)
+            : newValue;
+
+        // Only update if value actually changed
+        if (Object.is(hook.value, valueToSet)) {
+            return;
+        }
+
+        hook.value = valueToSet;
+
+        // Trigger re-render
+        scheduleRerender(component);
+    };
+
+    hooks.currentHookIndex++;
+    return [hook.value, setState];
+}
+
+// useEffect implementation
+function useEffect(callback, dependencies) {
+    const component = currentComponent;
+    const hooks = getComponentHooks(component);
+    const hookIndex = hooks.currentHookIndex;
+
+    const prevHook = hooks.hooks[hookIndex];
+
+    // Check if dependencies changed
+    const hasChangedDeps = prevHook
+        ? !dependencies || dependencies.some((dep, i) =>
+            !Object.is(dep, prevHook.dependencies[i])
+        )
+        : true;
+
+    if (hasChangedDeps) {
+        // Cleanup previous effect
+        if (prevHook && prevHook.cleanup) {
+            prevHook.cleanup();
+        }
+
+        // Schedule effect to run after render
+        scheduleEffect(() => {
+            const cleanup = callback();
+            hooks.hooks[hookIndex].cleanup = cleanup;
+        });
+    }
+
+    hooks.hooks[hookIndex] = {
+        dependencies,
+        cleanup: prevHook?.cleanup
+    };
+
+    hooks.currentHookIndex++;
+}
+
+// useRef implementation
+function useRef(initialValue) {
+    const component = currentComponent;
+    const hooks = getComponentHooks(component);
+    const hookIndex = hooks.currentHookIndex;
+
+    // Initialize ref if first render
+    if (hooks.hooks[hookIndex] === undefined) {
+        hooks.hooks[hookIndex] = {
+            current: initialValue
+        };
+    }
+
+    hooks.currentHookIndex++;
+    return hooks.hooks[hookIndex];
+}
+
+// Component render function
+function renderComponent(component) {
+    currentComponent = component;
+    const hooks = getComponentHooks(component);
+    hooks.currentHookIndex = 0; // Reset for each render
+
+    // Render the component
+    const result = component.render();
+
+    currentComponent = null;
+    return result;
+}
+
+// Scheduler for re-renders
+const renderQueue = new Set();
+let isRenderScheduled = false;
+
+function scheduleRerender(component) {
+    renderQueue.add(component);
+
+    if (!isRenderScheduled) {
+        isRenderScheduled = true;
+        queueMicrotask(() => {
+            const components = Array.from(renderQueue);
+            renderQueue.clear();
+            isRenderScheduled = false;
+
+            components.forEach(comp => {
+                renderComponent(comp);
+            });
+        });
+    }
+}
+
+// Effect scheduler
+const effectQueue = [];
+let isEffectScheduled = false;
+
+function scheduleEffect(effect) {
+    effectQueue.push(effect);
+
+    if (!isEffectScheduled) {
+        isEffectScheduled = true;
+        // Effects run after render is committed to DOM
+        requestAnimationFrame(() => {
+            const effects = [...effectQueue];
+            effectQueue.length = 0;
+            isEffectScheduled = false;
+
+            effects.forEach(effect => effect());
+        });
+    }
+}
+```
+
+**Key Insights:**
+
+1. **Hooks Array**: Each component has an array of hooks
+2. **Call Order**: Hooks must be called in the same order every render
+3. **Index Tracking**: React uses index to match hook calls to stored state
+4. **Closure**: Each hook closure captures its specific state
+5. **Scheduling**: State updates are batched and scheduled
+
+This is why the **Rules of Hooks** exist:
+- Only call hooks at the top level (not in loops, conditions, or nested functions)
+- Only call hooks from React function components or custom hooks
+
+#### Comprehensive Hooks Catalog
+
+##### 1. useState - State Management
+
+**Purpose**: Add local state to function components
+
+**Syntax**: `const [state, setState] = useState(initialState)`
+
+**Common Use Cases:**
+
+```javascript
+// Simple counter
+function Counter() {
+    const [count, setCount] = useState(0);
+
+    return (
+        <div>
+            <p>Count: {count}</p>
+            <button onClick={() => setCount(count + 1)}>+</button>
+            <button onClick={() => setCount(prev => prev - 1)}>-</button>
+        </div>
+    );
+}
+
+// Form input management
+function LoginForm() {
+    const [formData, setFormData] = useState({
+        email: '',
+        password: ''
+    });
+
+    const handleChange = (e) => {
+        setFormData(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    return (
+        <form>
+            <input
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+            />
+            <input
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+            />
+        </form>
+    );
+}
+
+// Lazy initialization (expensive computation)
+function ExpensiveComponent() {
+    const [data, setData] = useState(() => {
+        // Only runs on initial render
+        return computeExpensiveInitialValue();
+    });
+
+    return <div>{data}</div>;
+}
+```
+
+##### 2. useEffect - Side Effects
+
+**Purpose**: Perform side effects in function components (data fetching, subscriptions, DOM manipulation)
+
+**Syntax**: `useEffect(effectFunction, dependencies)`
+
+**Common Use Cases:**
+
+```javascript
+// Data fetching
+function UserProfile({ userId }) {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+
+        fetch(`/api/users/${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                setUser(data);
+                setLoading(false);
+            });
+    }, [userId]); // Re-run when userId changes
+
+    if (loading) return <div>Loading...</div>;
+    return <div>{user.name}</div>;
+}
+
+// Subscription management
+function ChatRoom({ roomId }) {
+    const [messages, setMessages] = useState([]);
+
+    useEffect(() => {
+        const subscription = subscribeToRoom(roomId, (message) => {
+            setMessages(prev => [...prev, message]);
+        });
+
+        // Cleanup function
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [roomId]);
+
+    return <MessageList messages={messages} />;
+}
+
+// Document title updates
+function PageTitle({ title }) {
+    useEffect(() => {
+        document.title = title;
+    }, [title]);
+
+    return null;
+}
+
+// Event listeners
+function MouseTracker() {
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+
+    useEffect(() => {
+        const handleMove = (e) => {
+            setPosition({ x: e.clientX, y: e.clientY });
+        };
+
+        window.addEventListener('mousemove', handleMove);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+        };
+    }, []); // Empty deps = only run once
+
+    return <div>Mouse: {position.x}, {position.y}</div>;
+}
+```
+
+##### 3. useContext - Context Consumption
+
+**Purpose**: Access React Context without wrapping components
+
+**Syntax**: `const value = useContext(MyContext)`
+
+**Common Use Cases:**
+
+```javascript
+// Theme context
+const ThemeContext = React.createContext('light');
+
+function ThemedButton() {
+    const theme = useContext(ThemeContext);
+
+    return (
+        <button className={`btn-${theme}`}>
+            Themed Button
+        </button>
+    );
+}
+
+// Auth context
+const AuthContext = React.createContext(null);
+
+function useAuth() {
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within AuthProvider');
+    }
+    return context;
+}
+
+function UserGreeting() {
+    const { user, logout } = useAuth();
+
+    return (
+        <div>
+            <p>Welcome, {user.name}</p>
+            <button onClick={logout}>Logout</button>
+        </div>
+    );
+}
+
+// Multi-context usage
+function Dashboard() {
+    const theme = useContext(ThemeContext);
+    const auth = useContext(AuthContext);
+    const settings = useContext(SettingsContext);
+
+    return (
+        <div className={`dashboard-${theme}`}>
+            {/* ... */}
+        </div>
+    );
+}
+```
+
+##### 4. useReducer - Complex State Logic
+
+**Purpose**: Manage complex state logic with reducers (similar to Redux)
+
+**Syntax**: `const [state, dispatch] = useReducer(reducer, initialState, init?)`
+
+**Common Use Cases:**
+
+```javascript
+// Complex form state
+const formReducer = (state, action) => {
+    switch (action.type) {
+        case 'SET_FIELD':
+            return {
+                ...state,
+                [action.field]: action.value
+            };
+        case 'RESET':
+            return action.initialState;
+        case 'SUBMIT':
+            return { ...state, submitting: true };
+        case 'SUBMIT_SUCCESS':
+            return { ...state, submitting: false, submitted: true };
+        case 'SUBMIT_ERROR':
+            return {
+                ...state,
+                submitting: false,
+                error: action.error
+            };
+        default:
+            return state;
+    }
+};
+
+function ComplexForm() {
+    const [state, dispatch] = useReducer(formReducer, {
+        name: '',
+        email: '',
+        submitting: false,
+        submitted: false,
+        error: null
+    });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        dispatch({ type: 'SUBMIT' });
+
+        try {
+            await submitForm(state);
+            dispatch({ type: 'SUBMIT_SUCCESS' });
+        } catch (error) {
+            dispatch({ type: 'SUBMIT_ERROR', error });
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <input
+                value={state.name}
+                onChange={(e) => dispatch({
+                    type: 'SET_FIELD',
+                    field: 'name',
+                    value: e.target.value
+                })}
+            />
+            {/* ... */}
+        </form>
+    );
+}
+
+// Todo list with complex operations
+const todoReducer = (state, action) => {
+    switch (action.type) {
+        case 'ADD':
+            return [...state, {
+                id: Date.now(),
+                text: action.text,
+                done: false
+            }];
+        case 'TOGGLE':
+            return state.map(todo =>
+                todo.id === action.id
+                    ? { ...todo, done: !todo.done }
+                    : todo
+            );
+        case 'DELETE':
+            return state.filter(todo => todo.id !== action.id);
+        case 'CLEAR_COMPLETED':
+            return state.filter(todo => !todo.done);
+        default:
+            return state;
+    }
+};
+
+function TodoList() {
+    const [todos, dispatch] = useReducer(todoReducer, []);
+
+    return (
+        <div>
+            <button onClick={() => dispatch({
+                type: 'ADD',
+                text: 'New Todo'
+            })}>
+                Add Todo
+            </button>
+            {todos.map(todo => (
+                <div key={todo.id}>
+                    <input
+                        type="checkbox"
+                        checked={todo.done}
+                        onChange={() => dispatch({
+                            type: 'TOGGLE',
+                            id: todo.id
+                        })}
+                    />
+                    {todo.text}
+                </div>
+            ))}
+        </div>
+    );
+}
+```
+
+##### 5. useMemo - Memoization
+
+**Purpose**: Memoize expensive calculations to avoid re-computing on every render
+
+**Syntax**: `const memoizedValue = useMemo(() => computeValue(), [deps])`
+
+**Common Use Cases:**
+
+```javascript
+// Expensive calculation
+function DataTable({ data, filters }) {
+    const filteredData = useMemo(() => {
+        console.log('Filtering data...');
+        return data.filter(item =>
+            filters.every(filter => filter(item))
+        );
+    }, [data, filters]); // Only recompute when data or filters change
+
+    return <Table data={filteredData} />;
+}
+
+// Derived state
+function ShoppingCart({ items }) {
+    const total = useMemo(() => {
+        return items.reduce((sum, item) =>
+            sum + item.price * item.quantity, 0
+        );
+    }, [items]);
+
+    const itemCount = useMemo(() => {
+        return items.reduce((count, item) =>
+            count + item.quantity, 0
+        );
+    }, [items]);
+
+    return (
+        <div>
+            <p>Items: {itemCount}</p>
+            <p>Total: ${total.toFixed(2)}</p>
+        </div>
+    );
+}
+
+// Stable object reference
+function UserProfile({ userId }) {
+    const queryConfig = useMemo(() => ({
+        userId,
+        includes: ['posts', 'followers'],
+        limit: 10
+    }), [userId]);
+
+    // queryConfig reference only changes when userId changes
+    const data = useFetchData(queryConfig);
+
+    return <div>{/* ... */}</div>;
+}
+```
+
+##### 6. useCallback - Callback Memoization
+
+**Purpose**: Memoize callback functions to prevent unnecessary re-renders of child components
+
+**Syntax**: `const memoizedCallback = useCallback(() => { doSomething() }, [deps])`
+
+**Common Use Cases:**
+
+```javascript
+// Optimized child re-renders
+function Parent() {
+    const [count, setCount] = useState(0);
+    const [text, setText] = useState('');
+
+    // Without useCallback, handleClick creates new function every render
+    // causing Child to re-render even when count doesn't change
+    const handleClick = useCallback(() => {
+        setCount(c => c + 1);
+    }, []); // Function never changes
+
+    return (
+        <div>
+            <input value={text} onChange={e => setText(e.target.value)} />
+            <Child onClick={handleClick} />
+            <p>Count: {count}</p>
+        </div>
+    );
+}
+
+const Child = React.memo(({ onClick }) => {
+    console.log('Child rendered');
+    return <button onClick={onClick}>Increment</button>;
+});
+
+// Event handlers with dependencies
+function SearchBar({ onSearch, debounceMs }) {
+    const [query, setQuery] = useState('');
+
+    const debouncedSearch = useCallback(
+        debounce((searchTerm) => {
+            onSearch(searchTerm);
+        }, debounceMs),
+        [onSearch, debounceMs]
+    );
+
+    useEffect(() => {
+        debouncedSearch(query);
+    }, [query, debouncedSearch]);
+
+    return (
+        <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+        />
+    );
+}
+
+// Ref callbacks
+function MeasuredComponent() {
+    const [height, setHeight] = useState(0);
+
+    const measuredRef = useCallback(node => {
+        if (node !== null) {
+            setHeight(node.getBoundingClientRect().height);
+        }
+    }, []);
+
+    return (
+        <div ref={measuredRef}>
+            <p>Height: {height}px</p>
+        </div>
+    );
+}
+```
+
+##### 7. useRef - Reference Management
+
+**Purpose**: Create mutable references that persist across renders without causing re-renders
+
+**Syntax**: `const ref = useRef(initialValue)`
+
+**Common Use Cases:**
+
+```javascript
+// DOM element access
+function FocusInput() {
+    const inputRef = useRef(null);
+
+    const handleFocus = () => {
+        inputRef.current.focus();
+    };
+
+    return (
+        <div>
+            <input ref={inputRef} />
+            <button onClick={handleFocus}>Focus Input</button>
+        </div>
+    );
+}
+
+// Storing mutable values without re-rendering
+function Timer() {
+    const [count, setCount] = useState(0);
+    const intervalRef = useRef(null);
+
+    const startTimer = () => {
+        if (intervalRef.current) return;
+
+        intervalRef.current = setInterval(() => {
+            setCount(c => c + 1);
+        }, 1000);
+    };
+
+    const stopTimer = () => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+    };
+
+    useEffect(() => {
+        return () => stopTimer(); // Cleanup
+    }, []);
+
+    return (
+        <div>
+            <p>Count: {count}</p>
+            <button onClick={startTimer}>Start</button>
+            <button onClick={stopTimer}>Stop</button>
+        </div>
+    );
+}
+
+// Previous value tracking
+function usePrevious(value) {
+    const ref = useRef();
+
+    useEffect(() => {
+        ref.current = value;
+    });
+
+    return ref.current;
+}
+
+function Counter() {
+    const [count, setCount] = useState(0);
+    const prevCount = usePrevious(count);
+
+    return (
+        <div>
+            <p>Current: {count}</p>
+            <p>Previous: {prevCount}</p>
+            <button onClick={() => setCount(count + 1)}>+</button>
+        </div>
+    );
+}
+
+// Avoiding stale closures
+function ChatRoom() {
+    const [message, setMessage] = useState('');
+    const messageRef = useRef('');
+
+    useEffect(() => {
+        messageRef.current = message;
+    }, [message]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // messageRef.current always has latest value
+            console.log('Latest message:', messageRef.current);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []); // Empty deps - interval set up once
+
+    return (
+        <input
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+        />
+    );
+}
+```
+
+##### 8. useLayoutEffect - Synchronous Effects
+
+**Purpose**: Similar to useEffect but fires synchronously after DOM mutations, before browser paint
+
+**Syntax**: `useLayoutEffect(effectFunction, dependencies)`
+
+**Common Use Cases:**
+
+```javascript
+// Measuring DOM before paint
+function Tooltip({ children }) {
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const tooltipRef = useRef(null);
+
+    useLayoutEffect(() => {
+        const tooltip = tooltipRef.current;
+        if (tooltip) {
+            const rect = tooltip.getBoundingClientRect();
+
+            // Adjust position if tooltip goes off-screen
+            const newPosition = { x: rect.left, y: rect.top };
+
+            if (rect.right > window.innerWidth) {
+                newPosition.x = window.innerWidth - rect.width;
+            }
+
+            setPosition(newPosition);
+        }
+    }, [children]);
+
+    return (
+        <div
+            ref={tooltipRef}
+            style={{
+                position: 'fixed',
+                left: position.x,
+                top: position.y
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+// Scroll position restoration
+function ScrollRestoration() {
+    const scrollRef = useRef(null);
+
+    useLayoutEffect(() => {
+        const savedPosition = sessionStorage.getItem('scrollPosition');
+        if (savedPosition && scrollRef.current) {
+            scrollRef.current.scrollTop = parseInt(savedPosition, 10);
+        }
+    }, []);
+
+    const handleScroll = (e) => {
+        sessionStorage.setItem('scrollPosition', e.target.scrollTop);
+    };
+
+    return (
+        <div ref={scrollRef} onScroll={handleScroll}>
+            {/* Content */}
+        </div>
+    );
+}
+```
+
+##### 9. useImperativeHandle - Ref Customization
+
+**Purpose**: Customize the instance value exposed when using ref with forwardRef
+
+**Syntax**: `useImperativeHandle(ref, createHandle, [deps])`
+
+**Common Use Cases:**
+
+```javascript
+// Custom input with imperative API
+const CustomInput = forwardRef((props, ref) => {
+    const inputRef = useRef(null);
+
+    useImperativeHandle(ref, () => ({
+        focus: () => {
+            inputRef.current?.focus();
+        },
+        clear: () => {
+            inputRef.current.value = '';
+        },
+        setValue: (value) => {
+            inputRef.current.value = value;
+        }
+    }));
+
+    return <input ref={inputRef} {...props} />;
+});
+
+function Form() {
+    const inputRef = useRef(null);
+
+    const handleSubmit = () => {
+        inputRef.current?.clear();
+        inputRef.current?.focus();
+    };
+
+    return (
+        <div>
+            <CustomInput ref={inputRef} />
+            <button onClick={handleSubmit}>Submit</button>
+        </div>
+    );
+}
+```
+
+##### 10. useDebugValue - DevTools Label
+
+**Purpose**: Display custom labels in React DevTools for custom hooks
+
+**Syntax**: `useDebugValue(value, format?)`
+
+**Common Use Cases:**
+
+```javascript
+function useOnlineStatus() {
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Shows "OnlineStatus: Online" or "OnlineStatus: Offline" in DevTools
+    useDebugValue(isOnline ? 'Online' : 'Offline');
+
+    return isOnline;
+}
+
+// Expensive formatting
+function useDate() {
+    const [date, setDate] = useState(new Date());
+
+    // Format function only called when DevTools is open and inspecting
+    useDebugValue(date, date => date.toISOString());
+
+    return date;
+}
+```
+
+##### 11. useId - Unique ID Generation (React 18+)
+
+**Purpose**: Generate unique IDs for accessibility attributes
+
+**Syntax**: `const id = useId()`
+
+**Common Use Cases:**
+
+```javascript
+function FormField({ label }) {
+    const id = useId();
+
+    return (
+        <div>
+            <label htmlFor={id}>{label}</label>
+            <input id={id} />
+        </div>
+    );
+}
+
+// Multiple IDs from same hook
+function MultiFieldForm() {
+    const id = useId();
+
+    return (
+        <div>
+            <label htmlFor={`${id}-name`}>Name</label>
+            <input id={`${id}-name`} />
+
+            <label htmlFor={`${id}-email`}>Email</label>
+            <input id={`${id}-email`} />
+        </div>
+    );
+}
+```
+
+#### Common Pitfalls and How to Avoid Them
+
+##### 1. Stale Closures
+
+**Problem**: Accessing outdated values in closures
+
+```javascript
+// ❌ Wrong: stale closure
+function Counter() {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCount(count + 1); // Always uses initial count (0)
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []); // Empty deps means count is always 0 in closure
+
+    return <div>{count}</div>;
+}
+
+// ✅ Correct: use functional update
+function Counter() {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCount(c => c + 1); // Always uses current count
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return <div>{count}</div>;
+}
+
+// ✅ Alternative: include in dependencies
+function Counter() {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCount(count + 1);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [count]); // Re-create interval when count changes
+
+    return <div>{count}</div>;
+}
+```
+
+##### 2. Missing Dependencies
+
+**Problem**: Not including all dependencies in useEffect/useCallback/useMemo
+
+```javascript
+// ❌ Wrong: missing dependencies
+function SearchResults({ query }) {
+    const [results, setResults] = useState([]);
+
+    useEffect(() => {
+        fetchResults(query).then(setResults);
+    }, []); // Missing 'query' dependency!
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Correct: include all dependencies
+function SearchResults({ query }) {
+    const [results, setResults] = useState([]);
+
+    useEffect(() => {
+        fetchResults(query).then(setResults);
+    }, [query]); // Correct dependencies
+
+    return <div>{/* ... */}</div>;
+}
+
+// 💡 Tip: Use ESLint plugin react-hooks/exhaustive-deps
+```
+
+##### 3. Creating Objects/Arrays in Dependencies
+
+**Problem**: New reference created every render
+
+```javascript
+// ❌ Wrong: new object every render
+function UserProfile({ userId }) {
+    const options = { userId, detailed: true }; // New object each render
+
+    useEffect(() => {
+        fetchUser(options);
+    }, [options]); // Effect runs every render!
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Correct: memoize or use primitives
+function UserProfile({ userId }) {
+    const options = useMemo(() => ({
+        userId,
+        detailed: true
+    }), [userId]);
+
+    useEffect(() => {
+        fetchUser(options);
+    }, [options]);
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Even better: destructure in effect
+function UserProfile({ userId }) {
+    useEffect(() => {
+        fetchUser({ userId, detailed: true });
+    }, [userId]); // Only depend on primitives
+
+    return <div>{/* ... */}</div>;
+}
+```
+
+##### 4. Calling Hooks Conditionally
+
+**Problem**: Violates Rules of Hooks
+
+```javascript
+// ❌ Wrong: conditional hook
+function Component({ shouldFetch }) {
+    if (shouldFetch) {
+        const [data, setData] = useState(null); // ERROR!
+    }
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Correct: always call hook
+function Component({ shouldFetch }) {
+    const [data, setData] = useState(null);
+
+    useEffect(() => {
+        if (shouldFetch) {
+            fetchData().then(setData);
+        }
+    }, [shouldFetch]);
+
+    return <div>{/* ... */}</div>;
+}
+```
+
+##### 5. Infinite Loops
+
+**Problem**: State update triggers effect, which updates state again
+
+```javascript
+// ❌ Wrong: infinite loop
+function Component() {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        setCount(count + 1); // Triggers re-render, runs effect again
+    }, [count]); // Effect depends on count it modifies!
+
+    return <div>{count}</div>;
+}
+
+// ✅ Correct: careful with dependencies
+function Component() {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setCount(c => c + 1);
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, []); // Only run once
+
+    return <div>{count}</div>;
+}
+```
+
+##### 6. Not Cleaning Up Effects
+
+**Problem**: Memory leaks and unexpected behavior
+
+```javascript
+// ❌ Wrong: no cleanup
+function Component() {
+    useEffect(() => {
+        const subscription = subscribeToData();
+        // Subscription never cleaned up!
+    }, []);
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Correct: return cleanup function
+function Component() {
+    useEffect(() => {
+        const subscription = subscribeToData();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
+
+    return <div>{/* ... */}</div>;
+}
+```
+
+##### 7. Overusing useMemo/useCallback
+
+**Problem**: Premature optimization adds complexity
+
+```javascript
+// ❌ Unnecessary: over-optimization
+function Component({ value }) {
+    const doubled = useMemo(() => value * 2, [value]); // Overkill
+    const handleClick = useCallback(() => {
+        console.log(value); // Simple function
+    }, [value]);
+
+    return <button onClick={handleClick}>{doubled}</button>;
+}
+
+// ✅ Better: only optimize when needed
+function Component({ value }) {
+    const doubled = value * 2; // Simple calculation
+    const handleClick = () => console.log(value); // Simple handler
+
+    return <button onClick={handleClick}>{doubled}</button>;
+}
+
+// ✅ Use when: expensive calculations or preventing child re-renders
+function Component({ largeArray }) {
+    // Good use: expensive operation
+    const sortedArray = useMemo(() =>
+        [...largeArray].sort((a, b) => b.value - a.value),
+        [largeArray]
+    );
+
+    // Good use: passing to memoized child
+    const handleClick = useCallback(() => {
+        processArray(largeArray);
+    }, [largeArray]);
+
+    return <ExpensiveChild onClick={handleClick} data={sortedArray} />;
+}
+```
+
+##### 8. useState with Complex Objects
+
+**Problem**: Not spreading previous state properly
+
+```javascript
+// ❌ Wrong: loses other properties
+function Component() {
+    const [user, setUser] = useState({ name: '', email: '', age: 0 });
+
+    const updateName = (name) => {
+        setUser({ name }); // Loses email and age!
+    };
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Correct: spread previous state
+function Component() {
+    const [user, setUser] = useState({ name: '', email: '', age: 0 });
+
+    const updateName = (name) => {
+        setUser(prev => ({ ...prev, name }));
+    };
+
+    return <div>{/* ... */}</div>;
+}
+
+// ✅ Even better: use multiple useState or useReducer
+function Component() {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [age, setAge] = useState(0);
+
+    return <div>{/* ... */}</div>;
+}
+```
+
+##### Key Takeaways for Avoiding Pitfalls:
+
+1. **Always follow Rules of Hooks**: Top-level only, same order every render
+2. **Use ESLint plugin**: `eslint-plugin-react-hooks` catches many issues
+3. **Functional updates**: Use `setState(prev => ...)` to avoid stale closures
+4. **Include all dependencies**: Don't lie to React about dependencies
+5. **Clean up effects**: Return cleanup functions from useEffect
+6. **Primitive dependencies**: Prefer primitives over objects/arrays in deps
+7. **Don't over-optimize**: Profile before adding useMemo/useCallback
+8. **Split complex state**: Multiple useState or useReducer for complex state
+
 ### React's Rendering Process
 
 1. **Initial Render**: React creates a Virtual DOM tree from your components
