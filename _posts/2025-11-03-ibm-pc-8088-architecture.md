@@ -121,10 +121,10 @@ flowchart TB
     CtrlSig ---|c10| IO
 
     %% Data Path Styling (Green - thicker lines)
-    linkStyle 10,11,12,13,14,15,16,17,18,19 stroke:#2e7d32,stroke-width:4px
+    linkStyle 4,5,6,10,11,13,14,15,16,17,18 stroke:#2e7d32,stroke-width:4px
 
     %% Control Path Styling (Orange - medium lines)
-    linkStyle 0,1,2,3,4,5,6,7,8,9,20,21 stroke:#ff6f00,stroke-width:3px
+    linkStyle 0,1,2,3,7,8,9,12,19,20 stroke:#ff6f00,stroke-width:3px
 
     style BIU fill:#0277bd,stroke:#01579b,stroke-width:3px,color:#fff
     style EU fill:#d84315,stroke:#bf360c,stroke-width:3px,color:#fff
