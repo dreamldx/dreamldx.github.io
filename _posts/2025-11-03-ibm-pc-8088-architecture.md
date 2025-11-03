@@ -56,70 +56,78 @@ The 8088 processor is internally divided into two independent functional units t
 
 #### Block Diagram: 8088 Internal Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           INTEL 8088 MICROPROCESSOR                         │
-│                                                                             │
-│  ┌───────────────────────────────────┐  ┌──────────────────────────────┐  │
-│  │    BUS INTERFACE UNIT (BIU)       │  │   EXECUTION UNIT (EU)        │  │
-│  │                                   │  │                              │  │
-│  │  ┌─────────────────────────────┐  │  │  ┌────────────────────────┐  │  │
-│  │  │   Instruction Queue (4-byte)│  │  │  │  General Registers     │  │  │
-│  │  │   ┌───┬───┬───┬───┐         │◄─┼──┼──┤  ┌──────┬──────┐      │  │  │
-│  │  │   │ Q │ Q │ Q │ Q │  FIFO   │  │  │  │  │  AH  │  AL  │ AX   │  │  │
-│  │  │   └───┴───┴───┴───┘         │  │  │  │  ├──────┼──────┤      │  │  │
-│  │  └─────────────────────────────┘  │  │  │  │  BH  │  BL  │ BX   │  │  │
-│  │                 │                  │  │  │  ├──────┼──────┤      │  │  │
-│  │  ┌──────────────▼────────────┐    │  │  │  │  CH  │  CL  │ CX   │  │  │
-│  │  │   Segment Registers       │    │  │  │  ├──────┼──────┤      │  │  │
-│  │  │  ┌────────────────┐       │    │  │  │  │  DH  │  DL  │ DX   │  │  │
-│  │  │  │ CS (Code)      │       │    │  │  │  └──────┴──────┘      │  │  │
-│  │  │  ├────────────────┤       │    │  │  │                        │  │  │
-│  │  │  │ DS (Data)      │       │    │  │  │  ┌──────────────────┐ │  │  │
-│  │  │  ├────────────────┤       │    │  │  │  │ Pointer & Index  │ │  │  │
-│  │  │  │ SS (Stack)     │       │    │  │  │  │  SP - Stack Ptr  │ │  │  │
-│  │  │  ├────────────────┤       │    │  │  │  │  BP - Base Ptr   │ │  │  │
-│  │  │  │ ES (Extra)     │       │    │  │  │  │  SI - Source Idx │ │  │  │
-│  │  │  └────────────────┘       │    │  │  │  │  DI - Dest Index │ │  │  │
-│  │  └───────────────────────────┘    │  │  │  └──────────────────┘ │  │  │
-│  │                 │                  │  │  └────────────┬───────────┘  │  │
-│  │  ┌──────────────▼────────────┐    │  │               │              │  │
-│  │  │  Instruction Pointer (IP) │    │  │  ┌────────────▼───────────┐  │  │
-│  │  │        (16-bit)           │    │  │  │   Arithmetic Logic     │  │  │
-│  │  └───────────────────────────┘    │  │  │   Unit (ALU)           │  │  │
-│  │                 │                  │  │  │   • Add/Subtract       │  │  │
-│  │  ┌──────────────▼────────────┐    │  │  │   • Logic Ops          │  │  │
-│  │  │  Address Generation &     │    │  │  │   • Shift/Rotate       │  │  │
-│  │  │  Bus Control Logic        │    │  │  │   • Multiply/Divide    │  │  │
-│  │  │  ┌──────────────────────┐ │    │  │  └────────────┬───────────┘  │  │
-│  │  │  │ Adder (Segment<<4)   │ │    │  │               │              │  │
-│  │  │  │      + Offset        │ │    │  │  ┌────────────▼───────────┐  │  │
-│  │  │  └──────────────────────┘ │    │  │  │   FLAGS Register       │  │  │
-│  │  │  Generates 20-bit Address │    │  │  │  ┌──────────────────┐  │  │  │
-│  │  └───────────────┬───────────┘    │  │  │  │ OF DF IF TF SF   │  │  │  │
-│  │                  │                 │  │  │  │ ZF -- AF -- PF   │  │  │  │
-│  │  ┌───────────────▼───────────┐    │  │  │  │ -- CF            │  │  │  │
-│  │  │   8-bit Data Bus Buffer   │    │  │  │  └──────────────────┘  │  │  │
-│  │  └───────────────┬───────────┘    │  │  └────────────┬───────────┘  │  │
-│  └──────────────────┼─────────────────┘  │               │              │  │
-│                     │                     │  ┌────────────▼───────────┐  │  │
-│  ┌──────────────────▼─────────────────┐  │  │   Control Unit         │  │  │
-│  │       External Bus Control         │  │  │   • Instruction Decode │  │  │
-│  │  ┌──────────────────────────────┐  │  │  │   • Microcode Engine   │  │  │
-│  │  │    8-bit Data Bus (D0-D7)    │  │  │  │   • Timing & Control   │  │  │
-│  │  └──────────────────────────────┘  │  │  └────────────────────────┘  │  │
-│  │  ┌──────────────────────────────┐  │  └──────────────────────────────┘  │
-│  │  │  20-bit Address Bus          │  │                                    │
-│  │  │     (A0-A19)                 │  │  Internal 16-bit Data Bus          │
-│  │  └──────────────────────────────┘  │  ◄══════════════════════════════►  │
-│  │  ┌──────────────────────────────┐  │                                    │
-│  │  │  Control Signals             │  │                                    │
-│  │  │  (RD, WR, M/IO, etc.)        │  │                                    │
-│  │  └──────────────────────────────┘  │                                    │
-│  └─────────────────────────────────────┘                                    │
-│                                                                             │
-│  Clock Input: 4.77 MHz                      Power: +5V                      │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph CPU["Intel 8088 Microprocessor - 4.77 MHz"]
+        subgraph BIU["Bus Interface Unit (BIU)"]
+            Queue["Instruction Queue<br/>(4-byte FIFO)<br/>┌───┬───┬───┬───┐<br/>│ Q │ Q │ Q │ Q │<br/>└───┴───┴───┴───┘"]
+
+            SegRegs["Segment Registers<br/>━━━━━━━━━━━━━━<br/>CS - Code Segment<br/>DS - Data Segment<br/>SS - Stack Segment<br/>ES - Extra Segment"]
+
+            IP["Instruction Pointer<br/>(IP - 16-bit)"]
+
+            AddrGen["Address Generation<br/>━━━━━━━━━━━━━━<br/>(Segment << 4) + Offset<br/>↓<br/>20-bit Physical Address"]
+
+            BusBuffer["8-bit Data Bus Buffer<br/>━━━━━━━━━━━━━━"]
+
+            Queue --> SegRegs
+            SegRegs --> IP
+            IP --> AddrGen
+            AddrGen --> BusBuffer
+        end
+
+        subgraph EU["Execution Unit (EU)"]
+            GenRegs["General Purpose Registers<br/>━━━━━━━━━━━━━━━━━━━<br/>AX: │ AH │ AL │ Accumulator<br/>BX: │ BH │ BL │ Base<br/>CX: │ CH │ CL │ Count<br/>DX: │ DH │ DL │ Data"]
+
+            PtrRegs["Pointer & Index Registers<br/>━━━━━━━━━━━━━━━━━━━<br/>SP - Stack Pointer<br/>BP - Base Pointer<br/>SI - Source Index<br/>DI - Destination Index"]
+
+            ALU["Arithmetic Logic Unit<br/>━━━━━━━━━━━━━━━━<br/>• Add/Subtract<br/>• Logic Operations<br/>• Shift/Rotate<br/>• Multiply/Divide"]
+
+            FLAGS["FLAGS Register<br/>━━━━━━━━━━━━<br/>OF - Overflow<br/>DF - Direction<br/>IF - Interrupt<br/>TF - Trap<br/>SF - Sign<br/>ZF - Zero<br/>AF - Aux Carry<br/>PF - Parity<br/>CF - Carry"]
+
+            Control["Control Unit<br/>━━━━━━━━━━━<br/>• Instruction Decoder<br/>• Microcode Engine<br/>• Timing & Control"]
+
+            GenRegs --> ALU
+            PtrRegs --> ALU
+            ALU --> FLAGS
+            FLAGS --> Control
+        end
+
+        subgraph ExtBus["External Bus Interface"]
+            DataBus["8-bit Data Bus<br/>(D0-D7)"]
+            AddrBus["20-bit Address Bus<br/>(A0-A19)<br/>1 MB Address Space"]
+            CtrlSig["Control Signals<br/>RD, WR, M/IO, etc."]
+        end
+
+        Queue -.->|"Instruction Flow"| Control
+        Control -.->|"Data Requests"| Queue
+        BusBuffer --> DataBus
+        AddrGen --> AddrBus
+        BIU --> CtrlSig
+
+        GenRegs <-.->|"Internal 16-bit Data Path"| Queue
+        PtrRegs <-.->|"Internal 16-bit Data Path"| SegRegs
+    end
+
+    Memory["External Memory<br/>(RAM/ROM)"]
+    IO["I/O Devices<br/>(Peripherals)"]
+
+    DataBus <--> Memory
+    DataBus <--> IO
+    AddrBus --> Memory
+    AddrBus --> IO
+    CtrlSig --> Memory
+    CtrlSig --> IO
+
+    style BIU fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    style EU fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    style ExtBus fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    style CPU fill:#fafafa,stroke:#212121,stroke-width:4px
+    style Queue fill:#b3e5fc,stroke:#0277bd,stroke-width:2px
+    style ALU fill:#ffcc80,stroke:#e65100,stroke-width:2px
+    style Control fill:#ffcc80,stroke:#e65100,stroke-width:2px
+    style Memory fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style IO fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
 ```
 
 #### Architecture Description
