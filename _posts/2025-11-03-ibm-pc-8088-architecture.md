@@ -57,7 +57,7 @@ The 8088 processor is internally divided into two independent functional units t
 #### Block Diagram: 8088 Internal Architecture
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'rgba(224,224,224,0.15)','clusterBorder':'#212121','edgeLabelBackground':'rgba(255,255,255,0)','titleColor':'#000'},'flowchart':{'curve':'linear'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0277bd','primaryTextColor':'#fff','primaryBorderColor':'#01579b','lineColor':'#424242','secondaryColor':'#d84315','tertiaryColor':'#6a1b9a','clusterBkg':'#fafafa','clusterBorder':'#212121','edgeLabelBackground':'#ffffff00','titleColor':'#000'},'flowchart':{'curve':'linear'}}}%%
 flowchart TB
     subgraph CPU["Intel 8088 Microprocessor - 4.77 MHz"]
         subgraph BIU["Bus Interface Unit (BIU)"]
@@ -126,10 +126,10 @@ flowchart TB
     %% Control Path Styling (Orange - medium lines)
     linkStyle 0,1,2,3,7,8,9,12,19,20 stroke:#ff6f00,stroke-width:3px
 
-    style BIU fill:rgba(2,119,189,0.12),stroke:#01579b,stroke-width:3px,color:#01579b,font-weight:bold
-    style EU fill:rgba(216,67,21,0.12),stroke:#bf360c,stroke-width:3px,color:#bf360c,font-weight:bold
-    style ExtBus fill:rgba(106,27,154,0.12),stroke:#4a148c,stroke-width:3px,color:#4a148c,font-weight:bold
-    style CPU fill:rgba(224,224,224,0.05),stroke:#212121,stroke-width:4px,color:#000,font-weight:bold
+    style BIU fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#01579b
+    style EU fill:#fbe9e7,stroke:#bf360c,stroke-width:3px,color:#bf360c
+    style ExtBus fill:#f3e5f5,stroke:#4a148c,stroke-width:3px,color:#4a148c
+    style CPU fill:#fafafa,stroke:#212121,stroke-width:4px,color:#000
     style Queue fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
     style SegRegs fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
     style IP fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
