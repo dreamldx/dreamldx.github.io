@@ -126,9 +126,9 @@ flowchart TB
     %% Control Path Styling (Orange - medium lines)
     linkStyle 0,1,2,3,7,8,9,12,19,20 stroke:#ff6f00,stroke-width:3px
 
-    style BIU fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#01579b
-    style EU fill:#fbe9e7,stroke:#bf360c,stroke-width:3px,color:#bf360c
-    style ExtBus fill:#f3e5f5,stroke:#4a148c,stroke-width:3px,color:#4a148c
+    style BIU fill:#e1f5ff,stroke:#01579b,stroke-width:3px,color:#000
+    style EU fill:#fbe9e7,stroke:#bf360c,stroke-width:3px,color:#000
+    style ExtBus fill:#f3e5f5,stroke:#4a148c,stroke-width:3px,color:#000
     style CPU fill:#fafafa,stroke:#212121,stroke-width:4px,color:#000
     style Queue fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
     style SegRegs fill:#0288d1,stroke:#01579b,stroke-width:2px,color:#fff
