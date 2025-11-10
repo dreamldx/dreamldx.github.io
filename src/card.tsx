@@ -14,5 +14,4 @@ function Card(props: CardProps) {
   )
 }
 
-
 export default Card

@@ -20,11 +20,12 @@ function App() {
     setLayouts((prev):Layout[] => [...prev, {
       i: String(prev.length + 1),
       x: 0,
-      y: 0,
+      y: -1,
       w: 1,
       h: 5
     }])
   }
+
   const onLayoutChange = (layout: Layout[]) => {
     setLayouts(layout)
   }
