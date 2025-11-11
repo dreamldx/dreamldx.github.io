@@ -43,6 +43,7 @@ function App() {
           rowHeight={30} // Height of each row
           width={1200} // Total width of the grid
           onLayoutChange={onLayoutChange}
+          draggableCancel={".cancelDrag"}
         >
           {
             layouts.map(layout => generateCardWithProps(layout))
